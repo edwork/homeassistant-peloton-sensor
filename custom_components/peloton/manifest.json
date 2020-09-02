@@ -1,0 +1,8 @@
+{
+  "domain": "peloton",
+  "name": "Peloton",
+  "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
+  "dependencies": [],
+  "codeowners": ["@edwork"],
+  "requirements": ["pylotoncycle"]
+}
