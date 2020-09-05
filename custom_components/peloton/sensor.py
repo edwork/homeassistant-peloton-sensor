@@ -79,7 +79,6 @@ class PelotonSensor(Entity):
         workout = pylotoncycle.PylotonCycle(self.user, self.password).GetRecentWorkouts(1)[0]
         if (workout["status"]== 'COMPLETE'):
             self._state = workout["status"]
-            self._attributes.update({"Active":False})
             self._attributes.update({"Workout Type":str(workout["fitness_discipline"])})
             self._attributes.update({"Ride Title":str(workout["ride"]["title"])})
             self._attributes.update({"Description":str(workout["ride"]["description"])})
@@ -87,13 +86,26 @@ class PelotonSensor(Entity):
             self._attributes.update({"Leaderboard Rank":str(workout["leaderboard_rank"])})
             self._attributes.update({"Total Work":str(workout["total_work"])})
             self._attributes.update({"Distance":str(workout["overall_summary"]["distance"])})
+            self._attributes.update({"Heart Rate":str(workout["overall_summary"]["avg_heart_rate"])})
+            self._attributes.update({"Resistance":str(workout["overall_summary"]["max_resistance"])})
             self._attributes.update({"Calories":str(workout["overall_summary"]["calories"])})
-            self._attributes.update({"Avg Heart Rate":str(workout["overall_summary"]["avg_heart_rate"])})
+            self._attributes.update({"Speed":str(workout["overall_summary"]["max_speed"])})
+            self._attributes.update({"Cadence":str(workout["overall_summary"]["max_cadence"])})
+            self._attributes.update({"Power":str(workout["overall_summary"]["max_power"])})
             self._attributes.update({"Instructor":str(workout["instructor_name"])})
-        else:
-            self._state = workout["status"]
-            self._attributes.update({"Active":True})
-            self._attributes.update({"Workout Type":"In Progress"})
-            self._attributes.update({"Leaderboard Rank":"In Progress"})
-            self._attributes.update({"Last Ride Title":"In Progress"})
-            self._attributes.update({"Last Ride Time":"In Progress"})
+        elif (workout["status"]== 'IN_PROGRESS'):
+            self._state = workout["IN PROGRESS"]
+            self._attributes.update({"Workout Type":str(workout["fitness_discipline"])})
+            self._attributes.update({"Ride Title":str(workout["ride"]["title"])})
+            self._attributes.update({"Description":str(workout["ride"]["description"])})
+            self._attributes.update({"Duration":str(workout["ride"]["duration"])})
+            self._attributes.update({"Leaderboard Rank":str(workout["leaderboard_rank"])})
+            self._attributes.update({"Total Work":str(workout["total_work"])})
+            self._attributes.update({"Distance":str(workout["overall_summary"]["distance"])})
+            self._attributes.update({"Heart Rate":str(workout["overall_summary"]["heart_rate"])})
+            self._attributes.update({"Resistance":str(workout["overall_summary"]["resistance"])})
+            self._attributes.update({"Calories":str(workout["overall_summary"]["calories"])})
+            self._attributes.update({"Speed":str(workout["overall_summary"]["speed"])})
+            self._attributes.update({"Cadence":str(workout["overall_summary"]["cadence"])})
+            self._attributes.update({"Power":str(workout["overall_summary"]["power"])})
+            self._attributes.update({"Instructor":str(workout["instructor_name"])})
