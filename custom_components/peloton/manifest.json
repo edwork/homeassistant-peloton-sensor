@@ -4,5 +4,5 @@
   "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
   "dependencies": [],
   "codeowners": ["@edwork"],
-  "requirements": ["pylotoncycle"]
+  "requirements": ["pylotoncycle==0.2.2"]
 }
