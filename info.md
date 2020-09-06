@@ -5,7 +5,18 @@ This is a custom component to expose [Peloton](https://www.onepeloton.com/) work
 ## Overview
 
 - Sensor state shows either Complete or In Progress
-- State Attributes include: Workout Type, Workout Title, Description, Duration, Rank, Work, Distance, Heart Rate, Resistance, Calories, Speed, Cadence, Power, and Instructor.
+- State Attributes include:
+  - Duration
+  - Leaderboard Rank
+  - Output
+  - Distance
+  - Calories
+  - Heart Rate (Current, Average, Max)
+  - Resistance (Current, Average, Max)
+  - Speed Mph/Kph (Current, Average, Max)
+  - Cadence (Current, Average, Max)
+  - Power (Current, Average, Max)
+  - Instructor
 
 ## Configuration
 UI Configuration is in the works, but for now this requires YAML configuration of credentials. 
@@ -25,7 +36,7 @@ sensor:
     power_output:
       friendly_name: "Power Output"
       value_template: >
-        {{ states.sensor.peloton_edwork.attributes.Power }}
+        {{ states.sensor.peloton_username.attributes.Power }}
 ```
 
 ## Use Cases

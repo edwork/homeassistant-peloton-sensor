@@ -76,36 +76,46 @@ class PelotonSensor(Entity):
 
     def update(self):
         """Fetch new state data for the sensor."""
-        workout = pylotoncycle.PylotonCycle(self.user, self.password).GetRecentWorkouts(1)[0]
+
+        conn = pylotoncycle.PylotonCycle(self.user, self.password)
+        workouts = conn.GetRecentWorkouts(1)
+        workout = workouts[0]
+
         if (workout["status"]== 'COMPLETE'):
-            self._state = workout["status"]
-            self._attributes.update({"Workout Type":str(workout["fitness_discipline"])})
-            self._attributes.update({"Ride Title":str(workout["ride"]["title"])})
-            self._attributes.update({"Description":str(workout["ride"]["description"])})
-            self._attributes.update({"Duration":str(workout["ride"]["duration"])})
-            self._attributes.update({"Leaderboard Rank":str(workout["leaderboard_rank"])})
-            self._attributes.update({"Total Work":str(workout["total_work"])})
-            self._attributes.update({"Distance":str(workout["overall_summary"]["distance"])})
-            self._attributes.update({"Heart Rate":str(workout["overall_summary"]["avg_heart_rate"])})
-            self._attributes.update({"Resistance":str(workout["overall_summary"]["max_resistance"])})
-            self._attributes.update({"Calories":str(workout["overall_summary"]["calories"])})
-            self._attributes.update({"Speed":str(workout["overall_summary"]["max_speed"])})
-            self._attributes.update({"Cadence":str(workout["overall_summary"]["max_cadence"])})
-            self._attributes.update({"Power":str(workout["overall_summary"]["max_power"])})
-            self._attributes.update({"Instructor":str(workout["instructor_name"])})
+            self._state = 'Complete'
         elif (workout["status"]== 'IN_PROGRESS'):
-            self._state = workout["IN PROGRESS"]
+            self._state = 'Active'
+        else:
+            self._state = workout["UNKNOWN"]
+
+        # Attempting to handle errors in case the API changes
+        try:
             self._attributes.update({"Workout Type":str(workout["fitness_discipline"])})
             self._attributes.update({"Ride Title":str(workout["ride"]["title"])})
             self._attributes.update({"Description":str(workout["ride"]["description"])})
-            self._attributes.update({"Duration":str(workout["ride"]["duration"])})
+            self._attributes.update({"Duration Min":str((workout["ride"]["duration"])//60)})
             self._attributes.update({"Leaderboard Rank":str(workout["leaderboard_rank"])})
-            self._attributes.update({"Total Work":str(workout["total_work"])})
-            self._attributes.update({"Distance":str(workout["overall_summary"]["distance"])})
-            self._attributes.update({"Heart Rate":str(workout["overall_summary"]["heart_rate"])})
-            self._attributes.update({"Resistance":str(workout["overall_summary"]["resistance"])})
-            self._attributes.update({"Calories":str(workout["overall_summary"]["calories"])})
-            self._attributes.update({"Speed":str(workout["overall_summary"]["speed"])})
-            self._attributes.update({"Cadence":str(workout["overall_summary"]["cadence"])})
-            self._attributes.update({"Power":str(workout["overall_summary"]["power"])})
+            self._attributes.update({"Output Kj":str((workout["total_work"]//1000)+(workout["total_work"]%1000>0))})
+            self._attributes.update({"Distance Mi":str(workout["overall_summary"]["distance"])})
+            self._attributes.update({"Calories KCal":str(int(workout["overall_summary"]["calories"]))})
+            self._attributes.update({"Heart Rate Bpm":str(workout["overall_summary"]["heart_rate"])})
+            self._attributes.update({"Heart Rate Average Bpm":str(workout["overall_summary"]["avg_heart_rate"])})
+            self._attributes.update({"Heart Rate Max Bpm":str(workout["overall_summary"]["max_heart_rate"])})
+            self._attributes.update({"Resistance %":str(workout["overall_summary"]["resistance"])})
+            self._attributes.update({"Resistance Average %":str(workout["overall_summary"]["avg_resistance"])})
+            self._attributes.update({"Resistance Max %":str(workout["overall_summary"]["max_resistance"])})
+            self._attributes.update({"Speed Mph":str(workout["overall_summary"]["speed"])})
+            self._attributes.update({"Speed Average Mph":str(workout["overall_summary"]["avg_speed"])})
+            self._attributes.update({"Speed Max Mph":str(workout["overall_summary"]["max_speed"])})
+            self._attributes.update({"Speed Kph":str(round(((workout["overall_summary"]["speed"])*1.60934),2))})
+            self._attributes.update({"Speed Average Kph":str(round(((workout["overall_summary"]["avg_speed"])*1.60934),2))})
+            self._attributes.update({"Speed Max Kph":str(round(((workout["overall_summary"]["max_speed"])*1.60934),2))})
+            self._attributes.update({"Cadence Rpm":str(workout["overall_summary"]["cadence"])})
+            self._attributes.update({"Cadence Average Rpm":str(workout["overall_summary"]["avg_cadence"])})
+            self._attributes.update({"Cadence Max Rpm":str(workout["overall_summary"]["max_cadence"])})
+            self._attributes.update({"Power W":str(workout["overall_summary"]["power"])})
+            self._attributes.update({"Power Average W":str(workout["overall_summary"]["avg_power"])})
+            self._attributes.update({"Power Max W":str(workout["overall_summary"]["max_power"])})
             self._attributes.update({"Instructor":str(workout["instructor_name"])})
+        except:
+            print("Error - Check to make sure the API hasn't changed")

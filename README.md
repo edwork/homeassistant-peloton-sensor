@@ -3,7 +3,18 @@
 ### Overview
 HomeAssistant Peloton Sensor is an integration that exposes either your latest ride's stats or your current ride's stats as a sensor. This can be useful to turn off lights, turn on fans, set scenes, etc. 
 - Sensor state shows either Complete or In Progress
-- State Attributes include: Workout Type, Workout Title, Description, Duration, Rank, Work, Distance, Heart Rate, Resistance, Calories, Speed, Cadence, Power, and Instructor.
+- State Attributes include:
+  - Duration
+  - Leaderboard Rank
+  - Output
+  - Distance
+  - Calories
+  - Heart Rate (Current, Average, Max)
+  - Resistance (Current, Average, Max)
+  - Speed Mph/Kph (Current, Average, Max)
+  - Cadence (Current, Average, Max)
+  - Power (Current, Average, Max)
+  - Instructor
 
 ### Under the Hood
 This integration uses [Pylotoncycle](https://pypi.org/project/pylotoncycle/) to poll Peloton's API every minute. Keep in mind that polling won't be instant when creating Automations. 
@@ -35,7 +46,7 @@ sensor:
     power_output:
       friendly_name: "Power Output"
       value_template: >
-        {{ states.sensor.peloton_edwork.attributes.Power }}
+        {{ states.sensor.peloton_username.attributes.Power }}
 ```
 
 ## Use Cases
@@ -45,6 +56,9 @@ sensor:
 
 ### ToDo
 * Configuration within the HA Web Interface (required for official HASS integration)
+* Error Handling of unsuccessful login
+* Error Handling of an unexpected API Change
+* MegaTemplate for people who wish to expose more attributes as sensors
 
 ### Final Thoughts
 Pull requests and issues are very welcome! At the moment the integration works but should be considered as beta. 
