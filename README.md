@@ -15,6 +15,8 @@ HomeAssistant Peloton Sensor is an integration that exposes either your latest r
   - Cadence (Current, Average, Max)
   - Power (Current, Average, Max)
   - Instructor
+  
+![Preview](assets/entity-preview.png)
 
 ### Under the Hood
 This integration uses [Pylotoncycle](https://pypi.org/project/pylotoncycle/) to poll Peloton's API every minute. Keep in mind that polling won't be instant when creating Automations. 
