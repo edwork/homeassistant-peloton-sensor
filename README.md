@@ -48,7 +48,7 @@ sensor:
     power_output:
       friendly_name: "Power Output"
       value_template: >
-        {{ states.sensor.peloton_username.attributes.Power }}
+        {{ state_attr('sensor.peloton_username', "Workout Type" ) }}
 ```
 
 ## Use Cases
