@@ -118,12 +118,12 @@ class PelotonSensor(Entity):
             self._attributes.update({"Instructor":str(workout_1["instructor_name"])})
             self._attributes.update({"Workout Image":str(workout_1["ride"]["image_url"])})
             
-            self._attributes.update({"Heart Rate Bpm":str(stats_1["metrics"][4]["average_value"])})
-            self._attributes.update({"Resistance %":str(stats_1["metrics"][2]["average_value"])})
-            self._attributes.update({"Speed Mph":str(workout_1["overall_summary"]["speed"])})
-            self._attributes.update({"Speed Kph":str(round(((workout_1["overall_summary"]["speed"])*1.60934),2))})
-            self._attributes.update({"Cadence Rpm":str(workout_1["overall_summary"]["cadence"])})
-            self._attributes.update({"Power W":str(workout_1["overall_summary"]["power"])})
+#             self._attributes.update({"Heart Rate Bpm":str(stats_1["metrics"][4]["average_value"])})
+#             self._attributes.update({"Resistance %":str(stats_1["metrics"][2]["average_value"])})
+#             self._attributes.update({"Speed Mph":str(workout_1["overall_summary"]["speed"])})
+#             self._attributes.update({"Speed Kph":str(round(((workout_1["overall_summary"]["speed"])*1.60934),2))})
+#             self._attributes.update({"Cadence Rpm":str(workout_1["overall_summary"]["cadence"])})
+#             self._attributes.update({"Power W":str(workout_1["overall_summary"]["power"])})
         except:
             print("Error - Check to make sure the API hasn't changed")
 
