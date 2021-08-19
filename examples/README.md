@@ -47,6 +47,11 @@ content: >+
   
   <font color="royalblue"><ha-icon icon="mdi:map-marker-distance"></ha-icon></font>  - **Distance (Mi):** {{ state_attr('sensor.peloton_username', "Distance Mi") | float | round(2) }}
   <font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Heart Rate (bpm):** {{ state_attr('sensor.peloton_username', "Heart Rate Average Bpm") | float | round(0) }} avg / {{ state_attr('sensor.peloton_username', "Heart Rate Max Bpm")  | float | round(0) }} max
+  <font color="#50C4AA"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Time in Zone 1:** {{state_attr('sensor.peloton_username', "HR Zone 1 Time")}} minutes
+  <font color="#B6C95C"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Time in Zone 2:** {{ state_attr('sensor.peloton_username', "HR Zone 2 Time")}} minutes
+  <font color= "#FACB3E"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Time in Zone 3:** {{ state_attr('sensor.peloton_username', "HR Zone 3 Time")}} minutes
+  <font color= "#FC800F"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Time in Zone 4:** {{state_attr('sensor.peloton_username', "HR Zone 4 Time")}} minutes
+  <font color= "#FF4759"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Time in Zone 5:** {{ state_attr('sensor.peloton_username', "HR Zone 5 Time")}} minutes
   <font color="darkorange"><ha-icon icon="mdi:omega"></ha-icon></font> - **Resistance:** {{ state_attr('sensor.peloton_username', "Resistance Average %") | float | round(0) }}% avg / {{ state_attr('sensor.peloton_username', "Resistance Max %") | float | round(0) }}% max
   <font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font> - **Speed (Mph):** {{ state_attr('sensor.peloton_username', "Speed Average Mph")  | float | round(2) }}  avg / {{ state_attr('sensor.peloton_username', "Speed Max Mph")  | float | round(2) }} max
   <font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font> - **Speed (Kph):** {{ state_attr('sensor.peloton_username', "Speed Average Kph")  | float | round(2) }}  avg / {{ state_attr('sensor.peloton_username', "Speed Max Kph")  | float | round(2) }} max
