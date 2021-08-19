@@ -118,12 +118,21 @@ class PelotonSensor(Entity):
             self._attributes.update({"Instructor":str(workout_1["instructor_name"])})
             self._attributes.update({"Workout Image":str(workout_1["ride"]["image_url"])})
             
-#             self._attributes.update({"Heart Rate Bpm":str(stats_1["metrics"][4]["average_value"])})
-#             self._attributes.update({"Resistance %":str(stats_1["metrics"][2]["average_value"])})
-#             self._attributes.update({"Speed Mph":str(workout_1["overall_summary"]["speed"])})
-#             self._attributes.update({"Speed Kph":str(round(((workout_1["overall_summary"]["speed"])*1.60934),2))})
-#             self._attributes.update({"Cadence Rpm":str(workout_1["overall_summary"]["cadence"])})
-#             self._attributes.update({"Power W":str(workout_1["overall_summary"]["power"])})
+            # Heart Rate Zones
+            self._attributes.update({"HR Zone 1 Time":str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z1_duration']//60) + ":" + str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z1_duration'] % 60)})
+            self._attributes.update({"HR Zone 2 Time":str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z2_duration']//60) + ":" + str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z2_duration'] % 60)})
+            self._attributes.update({"HR Zone 3 Time":str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z3_duration']//60) + ":" + str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z3_duration'] % 60)})
+            self._attributes.update({"HR Zone 4 Time":str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z4_duration']//60) + ":" + str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z4_duration'] % 60)})
+            self._attributes.update({"HR Zone 5 Time":str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z5_duration']//60) + ":" + str(stats_1['effort_zones']['heart_rate_zone_durations']['heart_rate_z5_duration'] % 60)})
+
+            # #Current metrics
+            self._attributes.update({"Heart Rate Bpm":str(stats_1["metrics"][4]["values"][-1])})
+            self._attributes.update({"Resistance %":str(stats_1['metrics'][2]['values'][-1])})
+            self._attributes.update({"Speed Mph":str(stats_1['metrics'][3]['values'][-1])})
+            self._attributes.update({"Speed Kph":str(round(((stats_1['metrics'][3]['values'][-1])*1.60934),2))})
+            self._attributes.update({"Cadence Rpm":str(stats_1['metrics'][1]['values'][-1])})
+            self._attributes.update({"Power W":str(stats_1['metrics'][0]['values'][-1])})
+
         except:
             print("Error - Check to make sure the API hasn't changed")
 
