@@ -8,7 +8,7 @@ You will need to search/replace `sensor.peloton_username` with own sensor name
 
 ## Preview 
 
-![Preview](./assets/markdown_preview.jpg)
+![Preview](./assets/markdown_preview1.jpg)
 
 ## Yaml (for Lovelace)
 
