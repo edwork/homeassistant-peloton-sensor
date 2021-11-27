@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """This script will give you a giant dictionary that can be used."""
 # pip3 install pylotoncycle
-import pylotoncycle, sys, getopt
+import pylotoncycle, sys, getopt, json
 def main(argv):
     username = ''
     password = ''
@@ -26,7 +26,7 @@ def main(argv):
         print("an error has occurred:" + str(e))
     else:
         workouts = conn.GetRecentWorkouts(5)
-        workout = workouts[0]
+        workout = json.dumps(workouts[0])
         # Output a giant dictionary
         print(workout)
 if __name__ == "__main__":
