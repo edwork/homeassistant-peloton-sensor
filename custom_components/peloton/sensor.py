@@ -1,7 +1,7 @@
 """A platform which allows you to get current and past ride data from Peloton."""
 
 from datetime import timedelta
-import logging
+import logging, json, sys
 
 import pylotoncycle
 import voluptuous as vol
@@ -79,7 +79,7 @@ class PelotonSensor(Entity):
 
         conn = pylotoncycle.PylotonCycle(self.user, self.password)
         workouts = conn.GetRecentWorkouts(1)
-        workout = workouts[0]
+        workout = json.dumps(workouts[0])
 
         if (workout["status"]== 'COMPLETE'):
             self._state = 'Complete'
