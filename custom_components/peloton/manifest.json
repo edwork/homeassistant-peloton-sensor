@@ -5,5 +5,6 @@
   "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
   "dependencies": [],
   "codeowners": ["@edwork"],
-  "requirements": ["pylotoncycle==0.5.2"]
+  "requirements": ["pylotoncycle==0.5.2"],
+  "iot_class": "cloud_polling"
 }
