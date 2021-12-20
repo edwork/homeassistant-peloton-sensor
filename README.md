@@ -1,6 +1,7 @@
 # HomeAssistant Peloton Sensor
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
+[![HASSFEST and HACS Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/validate.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/validate.yml)
 
 ### Overview
 HomeAssistant-Peloton-Sensor is an integration for [HomeAssistant](https://www.home-assistant.io/) that exposes your latest or current Peloton Workout session as a sensor. This can be useful to toggle lights, fans, or scenes according to your workout. 
