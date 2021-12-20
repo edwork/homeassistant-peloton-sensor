@@ -13,3 +13,6 @@ jobs:
         - uses: "actions/checkout@v2"
         - uses: "home-assistant/actions/hassfest@master"
         - uses: "hacs/action@main"
+          with:
+            category: "integration"
+            comment: true
