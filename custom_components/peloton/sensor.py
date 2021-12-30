@@ -20,11 +20,14 @@ from homeassistant.util import Throttle
 _LOGGER = logging.getLogger(__name__)
 
 TIME_BETWEEN_UPDATES = timedelta(seconds=10)
+CONF_HR_MONITOR = 'hr_monitor'
+DEFAULT_HR_MONITOR = True
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
+        vol.Optional(CONF_HR_MONITOR, default=DEFAULT_HR_MONITOR): cv.boolean,
     }
 )
 
@@ -34,17 +37,18 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     pelo_user = config.get(CONF_USERNAME)
     pelo_pass = config.get(CONF_PASSWORD)
+    pelo_hr_monitor = config.get(CONF_HR_MONITOR)
 
     session = async_get_clientsession(hass)
 
-    sensor = [PelotonSensor(pelo_user, pelo_pass)]
+    sensor = [PelotonSensor(pelo_user, pelo_pass, pelo_hr_monitor)]
 
     async_add_entities(sensor, True)
 
 class PelotonSensor(Entity):
     """Representation of a Peloton sensor."""
 
-    def __init__(self, pelo_user, pelo_pass):
+    def __init__(self, pelo_user, pelo_pass, pelo_hr_monitor):
         """Initialize the Peloton sensor."""
         self._state = None
         self._attributes = {}
@@ -98,7 +102,7 @@ class PelotonSensor(Entity):
             self._state = workout_latest["UNKNOWN"]
 
         _LOGGER.debug("Updating Extra State Attributes")
-        #Update Extra State Attributes
+        # Update Extra State Attributes
         try:
             self._attributes.update({"Workout Type":str(workout_latest["fitness_discipline"])})
             self._attributes.update({"Ride Title":str(workout_latest["ride"]["title"])})
@@ -142,10 +146,12 @@ class PelotonSensor(Entity):
         except:
             _LOGGER.warning("Error on parsing State Attributes, something in the API may have changed")
         
-        # Update Heart Rate State Attributes if present
-        try:
-            self._attributes.update({"Heart Rate Average Bpm":str(stats_latest["metrics"][4]["average_value"])})
-            self._attributes.update({"Heart Rate Max Bpm":str(stats_latest["metrics"][4]["max_value"])})
-            self._attributes.update({"Heart Rate Bpm":str(stats_latest["metrics"][4]["average_value"])})
-        except:
-            _LOGGER.warning("Error on parsing State Attributes for Heart Rate functionality. It's possible that you do not have a heart rate monitor and can ignore this warning")
+        # Check if HR Monitor is set to true in configuration
+        if self.hr_monitor == True:
+            # Update Heart Rate State Attributes if present
+            try:
+                self._attributes.update({"Heart Rate Average Bpm":str(stats_latest["metrics"][4]["average_value"])})
+                self._attributes.update({"Heart Rate Max Bpm":str(stats_latest["metrics"][4]["max_value"])})
+                self._attributes.update({"Heart Rate Bpm":str(stats_latest["metrics"][4]["average_value"])})
+            except:
+                _LOGGER.warning("Error on parsing State Attributes for Heart Rate functionality. It's possible that you do not have a heart rate monitor. You can disable the HR monitor in configuration by using the parameter 'hr_monitor: false'")
