@@ -114,8 +114,6 @@ class PelotonSensor(Entity):
             self._attributes.update({"Output Kj":str((workout_latest["total_work"]//1000)+(workout_latest["total_work"]%1000>0))})
             self._attributes.update({"Distance Mi":str(stats_latest["summaries"][1]["value"])})
             self._attributes.update({"Calories KCal":str(int(stats_latest["summaries"][2]["value"]))})
-            self._attributes.update({"Heart Rate Average Bpm":str(stats_latest["metrics"][4]["average_value"])})
-            self._attributes.update({"Heart Rate Max Bpm":str(stats_latest["metrics"][4]["max_value"])})
             self._attributes.update({"Resistance Average %":str(stats_latest["metrics"][2]["average_value"])})
             self._attributes.update({"Resistance Max %":str(stats_latest["metrics"][2]["max_value"])})
             self._attributes.update({"Speed Average Mph":str(stats_latest["metrics"][3]["average_value"])})
@@ -129,7 +127,6 @@ class PelotonSensor(Entity):
             self._attributes.update({"Total Work":str(workout_latest["overall_summary"]["total_work"])})
             self._attributes.update({"Instructor":str(workout_latest["instructor_name"])})
             self._attributes.update({"Workout Image":str(workout_latest["ride"]["image_url"])})
-            self._attributes.update({"Heart Rate Bpm":str(stats_latest["metrics"][4]["average_value"])})
             self._attributes.update({"Resistance %":str(stats_latest["metrics"][2]["average_value"])})
             # Need to see if these attributes show when a ride is in progress, or remove. 
             #self._attributes.update({"Speed Mph":str(workout_latest["overall_summary"]["speed"])})
@@ -138,3 +135,11 @@ class PelotonSensor(Entity):
             #self._attributes.update({"Power W":str(workout_latest["overall_summary"]["power"])})
         except:
             _LOGGER.warning("Error on parsing State Attributes, something in the API may have changed")
+        
+        # Update Heart Rate State Attributes if present
+        try:
+            self._attributes.update({"Heart Rate Average Bpm":str(stats_latest["metrics"][4]["average_value"])})
+            self._attributes.update({"Heart Rate Max Bpm":str(stats_latest["metrics"][4]["max_value"])})
+            self._attributes.update({"Heart Rate Bpm":str(stats_latest["metrics"][4]["average_value"])})
+        except:
+            _LOGGER.warning("Error on parsing State Attributes for Heart Rate functionality. It's possible that you do not have a heart rate monitor and can ignore this warning")
