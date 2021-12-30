@@ -116,10 +116,16 @@ class PelotonSensor(Entity):
             self._attributes.update({"Calories KCal":str(int(stats_latest["summaries"][2]["value"]))})
             self._attributes.update({"Resistance Average %":str(stats_latest["metrics"][2]["average_value"])})
             self._attributes.update({"Resistance Max %":str(stats_latest["metrics"][2]["max_value"])})
-            self._attributes.update({"Speed Average Mph":str(stats_latest["metrics"][3]["average_value"])})
-            self._attributes.update({"Speed Max Mph":str(stats_latest["metrics"][3]["max_value"])})
-            self._attributes.update({"Speed Average Kph":str(round(((stats_latest["metrics"][3]["average_value"])*1.60934),2))})
-            self._attributes.update({"Speed Max Kph":str(round(((stats_latest["metrics"][3]["max_value"])*1.60934),2))})
+            if stats_latest["metrics"][3]["display_unit"] == "kph":
+                kph_multiplier = 1
+                mph_multiplier = 0.60934
+            else:
+                kph_multiplier = 1.60934
+                mph_multiplier = 1
+            self._attributes.update({"Speed Average Mph":str(round(((stats_latest["metrics"][3]["average_value"])*mph_multiplier),2))})
+            self._attributes.update({"Speed Max Mph":str(round(((stats_latest["metrics"][3]["max_value"])*mph_multiplier),2))})
+            self._attributes.update({"Speed Average Kph":str(round(((stats_latest["metrics"][3]["average_value"])*kph_multiplier),2))})
+            self._attributes.update({"Speed Max Kph":str(round(((stats_latest["metrics"][3]["max_value"])*kph_multiplier),2))})
             self._attributes.update({"Cadence Average Rpm":str(stats_latest["metrics"][1]["average_value"])})
             self._attributes.update({"Cadence Max Rpm":str(stats_latest["metrics"][1]["max_value"])})
             self._attributes.update({"Power Average W":str(stats_latest["metrics"][0]["average_value"])})
