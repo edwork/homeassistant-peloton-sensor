@@ -82,7 +82,7 @@ class PelotonSensor(Entity):
         try:
             conn = pylotoncycle.PylotonCycle(self.user, self.password)
         except:
-            _LOGGER.warning("Peloton Username or Password Incorrect")
+            _LOGGER.error("Peloton Username or Password Incorrect, or API unavailable.")
         workouts = conn.GetRecentWorkouts(2)
         workout_latest = workouts[0]
         workout_latest_id = workout_latest["id"]
@@ -96,45 +96,139 @@ class PelotonSensor(Entity):
             self._state = 'Active'
         else:
             self._state = workout_latest["UNKNOWN"]
+            _LOGGER.warning("State unable to be updated, please report this to the developer.")
 
-        _LOGGER.debug("Updating Extra State Attributes")
         #Update Extra State Attributes
+        _LOGGER.debug("Updating Extra State Attributes")
         try:
             self._attributes.update({"Workout Type":str(workout_latest["fitness_discipline"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Workout Type")
+        try:
             self._attributes.update({"Ride Title":str(workout_latest["ride"]["title"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Ride Title")
+        try:
             self._attributes.update({"Device Type":str(workout_latest["device_type"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Device Type")
+        try:
             self._attributes.update({"Paused":str(workout_latest["is_paused"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Paused")
+        try:
             self._attributes.update({"Description":str(workout_latest["ride"]["description"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Description")
+        try:
             self._attributes.update({"Start Time":str(workout_latest["start_time"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Start Time")
+        try:
             self._attributes.update({"End Time":str(workout_latest["end_time"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - End Time")
+        try:
             self._attributes.update({"FTP":str(workout_latest["ftp_info"]["ftp"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - FTP")
+        try:
             self._attributes.update({"Duration Min":str((workout_latest["ride"]["duration"])//60)})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Duration Min")
+        try:
             self._attributes.update({"Leaderboard Rank":str(workout_latest["leaderboard_rank"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Leaderboard Rank")
+        try:
             self._attributes.update({"Leaderboard Users":str(workout_latest["total_leaderboard_users"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Leaderboard Users")
+        try:
             self._attributes.update({"Output Kj":str((workout_latest["total_work"]//1000)+(workout_latest["total_work"]%1000>0))})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Output Kj")
+        try:
             self._attributes.update({"Distance Mi":str(stats_latest["summaries"][1]["value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Distance Mi")
+        try:
             self._attributes.update({"Calories KCal":str(int(stats_latest["summaries"][2]["value"]))})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Calories KCal")
+        try:
             self._attributes.update({"Heart Rate Average Bpm":str(stats_latest["metrics"][4]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Heart Rate Average Bpm")
+        try:
             self._attributes.update({"Heart Rate Max Bpm":str(stats_latest["metrics"][4]["max_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Heart Rate Max Bpm")
+        try:
             self._attributes.update({"Resistance Average %":str(stats_latest["metrics"][2]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Resistance Average")
+        try:
             self._attributes.update({"Resistance Max %":str(stats_latest["metrics"][2]["max_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Resistance Max Percentage")
+        try:
             self._attributes.update({"Speed Average Mph":str(stats_latest["metrics"][3]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Speed Average Mph")
+        try:
             self._attributes.update({"Speed Max Mph":str(stats_latest["metrics"][3]["max_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Speed Max Mph")
+        try:
             self._attributes.update({"Speed Average Kph":str(round(((stats_latest["metrics"][3]["average_value"])*1.60934),2))})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Speed Average Kph")
+        try:
             self._attributes.update({"Speed Max Kph":str(round(((stats_latest["metrics"][3]["max_value"])*1.60934),2))})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Speed Max Kph")
+        try:
             self._attributes.update({"Cadence Average Rpm":str(stats_latest["metrics"][1]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Cadence Average Rpm")
+        try:
             self._attributes.update({"Cadence Max Rpm":str(stats_latest["metrics"][1]["max_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Cadence Max Rpm")
+        try:
             self._attributes.update({"Power Average W":str(stats_latest["metrics"][0]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Power Average W")
+        try:
             self._attributes.update({"Power Max W":str(stats_latest["metrics"][0]["max_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Power Max W")
+        try:
             self._attributes.update({"Total Work":str(workout_latest["overall_summary"]["total_work"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Total Work")
+        try:
             self._attributes.update({"Instructor":str(workout_latest["instructor_name"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Instructor")
+        try:
             self._attributes.update({"Workout Image":str(workout_latest["ride"]["image_url"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Workout Image")
+        try:
             self._attributes.update({"Heart Rate Bpm":str(stats_latest["metrics"][4]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Heart Rate Bpm")
+        try:
             self._attributes.update({"Resistance %":str(stats_latest["metrics"][2]["average_value"])})
+        except:
+            _LOGGER.debug("Error Updating Peloton Attribute - Resistance Percentage")
             # Need to see if these attributes show when a ride is in progress, or remove. 
             #self._attributes.update({"Speed Mph":str(workout_latest["overall_summary"]["speed"])})
             #self._attributes.update({"Speed Kph":str(round(((workout_latest["overall_summary"]["speed"])*1.60934),2))})
             #self._attributes.update({"Cadence Rpm":str(workout_latest["overall_summary"]["cadence"])})
             #self._attributes.update({"Power W":str(workout_latest["overall_summary"]["power"])})
-        except:
-            _LOGGER.warning("Error on parsing State Attributes, something in the API may have changed")
+        finally:
+            pass
+            _LOGGER.debug("Finished Extended Attribute Parsing")

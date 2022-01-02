@@ -1,7 +1,7 @@
 {
   "domain": "peloton",
   "name": "Peloton",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "issue_tracker": "https://github.com/edwork/homeassistant-peloton-sensor/issues",
   "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
   "dependencies": [],
