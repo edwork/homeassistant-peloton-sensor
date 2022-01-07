@@ -116,7 +116,7 @@ class PelotonSensor(Entity):
         try:
             self._attributes.update({"Paused":str(workout_latest["is_paused"])})
         except:
-            self._attributes.update({"Paused":str(Unavailable)})
+            self._attributes.update({"Paused":str("Unavailable")})
             _LOGGER.debug("Error Updating Peloton Attribute - Paused")
         try:
             self._attributes.update({"Description":str(workout_latest["ride"]["description"])})
@@ -131,7 +131,7 @@ class PelotonSensor(Entity):
         try:
             self._attributes.update({"End Time":str(datetime.fromtimestamp(workout_latest["end_time"]))})
         except:
-            self._attributes.update({"End Time":str(Unavailable)})
+            self._attributes.update({"End Time":str("Unavailable")})
             _LOGGER.debug("Error Updating Peloton Attribute - End Time")
         try:
             self._attributes.update({"FTP":str(workout_latest["ftp_info"]["ftp"])})
