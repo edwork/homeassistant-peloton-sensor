@@ -55,7 +55,9 @@ content: >+
   <font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font> - **Total Work:** {{ state_attr('sensor.peloton_username', "Total Work")  | float | round(0) }} J
   <font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font> - **Output (KJ):** {{ state_attr('sensor.peloton_username', "Output Kj")  | float | round(2) }}
   <font color="crimson"><ha-icon icon="mdi:food"></ha-icon></font> - **Calories (KCal):** {{ state_attr('sensor.peloton_username', "Calories KCal") }}
+  {% if state_attr('sensor.peloton_username', "Leaderboard Rank") != "None" -%}
   <font color="yellowgreen"><ha-icon icon="mdi:chevron-triple-up"></ha-icon></font> - **Leaderboard Rank:** {{ state_attr('sensor.peloton_username', "Leaderboard Rank") }} / {{ state_attr('sensor.peloton_username', "Leaderboard Users") }} ({{ 100 - (100 * (state_attr('sensor.peloton_username', "Leaderboard Rank") | int ) / (state_attr('sensor.peloton_username', "Leaderboard Users") | int)) | round(0) }}%)
+  {%- endif %}
 theme: solarized_light
 ````
 
