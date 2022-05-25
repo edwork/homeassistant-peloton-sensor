@@ -8,5 +8,5 @@
   "zip_release": true,
   "filename": "peloton-sensor.zip",
   "homeassistant": "2021.12",
-  "render_readme": true,
+  "render_readme": true
 }
