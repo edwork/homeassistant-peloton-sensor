@@ -7,5 +7,6 @@
   "iot_class": "cloud_poll",
   "zip_release": true,
   "filename": "peloton-sensor.zip",
-  "homeassistant": "0.100.0"
+  "homeassistant": "2021.12",
+  "render_readme": true,
 }
