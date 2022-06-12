@@ -1,12 +1,3 @@
 {
-  "name": "Peloton Sensor",
-  "content_in_root": false,
-  "domains": [
-    "sensor"
-  ],
-  "iot_class": "cloud_poll",
-  "zip_release": true,
-  "filename": "peloton-sensor.zip",
-  "homeassistant": "2021.12",
-  "render_readme": true
+  "name": "Peloton"
 }
