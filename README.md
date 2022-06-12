@@ -1,7 +1,9 @@
 # Home Assistant Peloton Sensor
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
-[![HACS Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/validate.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/validate.yml)
+[![CodeQL Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/codeql-analysis.yml)
+[![Dependency Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/dependency-review.yml)
+[![HASSFest Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/hassfest.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/hassfest.yml)
 
 ## Development & Community
 
