@@ -243,6 +243,7 @@ def compile_quant_data(
             None,
             SensorDeviceClass.TIMESTAMP,
             SensorStateClass.MEASUREMENT,
+            "mdi:timer-sand",
         ),
         PelotonStat(
             "End Time",
@@ -252,6 +253,7 @@ def compile_quant_data(
             None,
             SensorDeviceClass.TIMESTAMP,
             SensorStateClass.MEASUREMENT,
+            "mdi:timer-sand-complete",
         ),
         PelotonStat(
             "Duration",
@@ -261,6 +263,7 @@ def compile_quant_data(
             "min",
             None,
             SensorStateClass.MEASUREMENT,
+            "mdi:timer-outline",
         ),
         PelotonStat(
             "Leaderboard: Rank",
@@ -268,6 +271,7 @@ def compile_quant_data(
             None,
             None,
             SensorStateClass.MEASUREMENT,
+            "mdi:trophy-award",
         ),
         PelotonStat(
             "Leaderboard: Total Users",
@@ -275,23 +279,26 @@ def compile_quant_data(
             None,
             None,
             SensorStateClass.MEASUREMENT,
+            "mdi:account-group",
         ),
         PelotonStat(
             "Power Output",
-            round(total_work / 3600, 4)
+            round(total_work / 3600, 4)  # Converts joules to kWh
             if "total_work" in workout_stats_summary
             and isinstance(total_work := workout_stats_summary.get("total_work"), float)
             else None,
             "Wh",
             SensorDeviceClass.ENERGY,
             SensorStateClass.MEASUREMENT,
-        ),  # Converts joules to kWh
+            None,
+        ),
         PelotonStat(
             "Distance",
             getattr(summaries.get("distance"), "total", None),
             getattr(summaries.get("distance"), "unit", None),
             getattr(summaries.get("distance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:map-marker-distance",
         ),
         PelotonStat(
             "Calories",
@@ -299,6 +306,7 @@ def compile_quant_data(
             getattr(summaries.get("calories"), "unit", None),
             getattr(summaries.get("calories"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:fire",
         ),
         PelotonStat(
             "Heart Rate: Average",
@@ -306,6 +314,7 @@ def compile_quant_data(
             getattr(metrics.get("heart_rate"), "unit", None),
             getattr(metrics.get("heart_rate"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:heart-pulse",
         ),
         PelotonStat(
             "Heart Rate: Max",
@@ -313,6 +322,7 @@ def compile_quant_data(
             getattr(metrics.get("heart_rate"), "unit", None),
             getattr(metrics.get("heart_rate"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:heart-pulse",
         ),
         PelotonStat(
             "Resistance: Average",
@@ -320,6 +330,7 @@ def compile_quant_data(
             getattr(metrics.get("resistance"), "unit", None),
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:network-strength-2",
         ),
         PelotonStat(
             "Resistance: Max",
@@ -327,6 +338,7 @@ def compile_quant_data(
             getattr(metrics.get("resistance"), "unit", None),
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:network-strength-4",
         ),
         PelotonStat(
             "Speed: Average",
@@ -334,6 +346,7 @@ def compile_quant_data(
             getattr(metrics.get("speed"), "unit", None),
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:speedometer-medium",
         ),
         PelotonStat(
             "Speed: Max",
@@ -341,6 +354,7 @@ def compile_quant_data(
             getattr(metrics.get("speed"), "unit", None),
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:speedometer",
         ),
         PelotonStat(
             "Cadence: Average",
@@ -348,6 +362,7 @@ def compile_quant_data(
             getattr(metrics.get("cadence"), "unit", None),
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:fan",
         ),
         PelotonStat(
             "Cadence: Max",
@@ -355,5 +370,6 @@ def compile_quant_data(
             getattr(metrics.get("cadence"), "unit", None),
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
+            "mdi:fan-chevron-up",
         ),
     ]
