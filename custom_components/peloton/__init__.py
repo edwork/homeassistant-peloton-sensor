@@ -239,6 +239,7 @@ def compile_quant_data(
             "Start Time",
             datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone)
             if "start_time" in workout_stats_summary
+            and workout_stats_summary["start_time"] is not None
             else None,
             None,
             SensorDeviceClass.TIMESTAMP,
@@ -249,6 +250,7 @@ def compile_quant_data(
             "End Time",
             datetime.fromtimestamp(workout_stats_summary["end_time"], user_timezone)
             if "end_time" in workout_stats_summary
+            and workout_stats_summary["end_time"] is not None
             else None,
             None,
             SensorDeviceClass.TIMESTAMP,
@@ -258,7 +260,10 @@ def compile_quant_data(
         PelotonStat(
             "Duration",
             duration_sec / 60
-            if (duration_sec := workout_stats_summary.get("ride", {}).get("duration"))
+            if (
+                (duration_sec := workout_stats_summary.get("ride", {}).get("duration"))
+                and duration_sec is not None
+            )
             else None,
             "min",
             None,
