@@ -34,6 +34,7 @@ class PelotonStat:
     native_unit_of_measurement: str | None
     device_class: SensorDeviceClass | None
     state_class: SensorStateClass | None
+    icon: str | None
 
 
 @dataclass
@@ -112,5 +113,8 @@ class PelotonStatSensor(SensorEntity, CoordinatorEntity):  # type: ignore
                 )
                 self._attr_device_class = peloton_stat.device_class
                 self._attr_state_class = peloton_stat.state_class
+
+                if peloton_stat.icon:
+                    self._attr_icon = peloton_stat.icon
 
         self.async_write_ha_state()
