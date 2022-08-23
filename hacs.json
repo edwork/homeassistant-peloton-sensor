@@ -1,3 +1,4 @@
 {
-  "name": "Peloton"
+  "name": "Peloton",
+  "render_readme": true
 }
