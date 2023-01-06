@@ -135,3 +135,6 @@ api-responses/
 *.ignore.*
 .DS_Store
 __pycache__/
+
+# Release Asset Files
+custom_components/peloton/peloton-sensor.zip
