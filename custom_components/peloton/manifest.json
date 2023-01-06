@@ -2,10 +2,10 @@
   "domain": "peloton",
   "name": "Peloton",
   "config_flow": true,
-  "version": "0.8.1",
+  "version": "0.8.2",
   "issue_tracker": "https://github.com/edwork/homeassistant-peloton-sensor/issues",
   "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
   "codeowners": ["@edwork"],
-  "requirements": ["pylotoncycle==0.5.2"],
+  "requirements": ["pylotoncycle==0.6.0"],
   "iot_class": "cloud_polling"
 }
