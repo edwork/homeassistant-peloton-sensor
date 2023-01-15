@@ -179,7 +179,7 @@ def compile_quant_data(
                         if isinstance((avg_val := metric.get("average_value")), int)
                         else None,
                         int(val)
-                        if isinstance((val := metric.get("values")[0]), int)
+                        if isinstance((val := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         str(metric.get("display_unit")),
                         None,
@@ -197,7 +197,7 @@ def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if isinstance((value := metric.get("values")[0]), int)
+                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         "%",
                         None,
@@ -215,7 +215,7 @@ def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), float)
                         else None,
                        value
-                        if isinstance((value := metric.get("values")[0]), float)
+                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), float)
                         else None,
                         str(metric.get("display_unit")),
                         None,
@@ -233,7 +233,7 @@ def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if isinstance((value := metric.get("values")[0]), int)
+                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         "rpm",
                         None,
@@ -251,7 +251,7 @@ def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if isinstance((value := metric.get("values")[0]), int)
+                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         "W",
                         SensorDeviceClass.POWER,
@@ -277,8 +277,8 @@ def compile_quant_data(
             "End Time",
             datetime.fromtimestamp(workout_stats_summary["end_time"], user_timezone)
             if "end_time" in workout_stats_summary
-            and workout_stats_summary["end_time"] is not None
-            else None,
+            and workout_stats_summary["end_time"] is not None or not 'null'
+            else datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone),
             None,
             SensorDeviceClass.TIMESTAMP,
             SensorStateClass.MEASUREMENT,
@@ -286,7 +286,7 @@ def compile_quant_data(
         ),
         PelotonStat(
             "Duration",
-            duration_sec / 60
+            round((duration_sec / 60), 2)
             if (
                 (duration_sec := workout_stats_summary.get("ride", {}).get("duration"))
                 and duration_sec is not None
@@ -346,7 +346,7 @@ def compile_quant_data(
             getattr(summaries.get("totaloutput"), "unit", None),
             getattr(summaries.get("totaloutput"), "device_class", None),
             SensorStateClass.MEASUREMENT,
-            "mdi:fire",
+            "mdi:lightning-bolt",
         ),
         PelotonStat(
             "Heart Rate: Average",
@@ -394,7 +394,7 @@ def compile_quant_data(
             getattr(metrics.get("resistance"), "unit", None),
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
-            "mdi:network-strength-4",
+            "mdi:network-strength-1",
         ),
         PelotonStat(
             "Speed: Average",
@@ -418,7 +418,7 @@ def compile_quant_data(
             getattr(metrics.get("speed"), "unit", None),
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
-            "mdi:speedometer",
+            "mdi:speedometer-slow",
         ),
         PelotonStat(
             "Cadence: Average",
@@ -442,6 +442,6 @@ def compile_quant_data(
             getattr(metrics.get("cadence"), "unit", None),
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
-            "mdi:fan-chevron-up",
+            "mdi:fan-clock",
         ),
     ]
