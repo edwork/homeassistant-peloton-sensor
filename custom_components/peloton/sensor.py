@@ -43,7 +43,6 @@ class PelotonMetric:
 
     max_val: int | float | None
     avg_val: int | float | None
-    value: int | float | None
     unit: str | None  # Useful for mph vs kmph
     device_class: SensorDeviceClass | None
 
