@@ -1,93 +1,72 @@
-# HomeAssistant Peloton Sensor
+# Home Assistant Peloton Sensor
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
-[![HASSFEST and HACS Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/validate.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/validate.yml)
+[![CodeQL Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/codeql-analysis.yml)
+[![Dependency Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/dependency-review.yml)
+[![HASSFest Validation](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/hassfest.yml/badge.svg)](https://github.com/edwork/homeassistant-peloton-sensor/actions/workflows/hassfest.yml)
 
-### Community
-Please join our community discussion [here](https://community.home-assistant.io/t/peloton-support/72555)!
+## Development & Community
 
-### Overview
-HomeAssistant-Peloton-Sensor is an integration for [HomeAssistant](https://www.home-assistant.io/) that exposes your latest or current Peloton Workout session as a sensor. This can be useful to toggle lights, fans, or scenes according to your workout. 
-- Sensor state shows either `Complete` or `In Progress`
-- State Attributes include:
-  - Workout Type
-  - Ride Title
-  - Device Type
-  - Paused
-  - Description
-  - Start Time
-  - End Time
-  - FTP
-  - Duration Min
-  - Leaderboard Rank
-  - Leaderboard Users
-  - Output Kj
-  - Distance Mi
-  - Calories KCal
-  - Heart Rate Average Bpm
-  - Heart Rate Max Bpm
-  - Resistance Average
-  - Resistance Max
-  - Speed Average Mph
-  - Speed Max Mph
-  - Speed Average Kph
-  - Speed Max Kph
-  - Cadence Average Rpm
-  - Cadence Max Rpm
-  - Power Average W
-  - Power Max W
-  - Total Work
-  - Instructor
-  - Workout Image
-  - Heart Rate Bpm
-  - Resistance
-  
-![Preview](assets/entity-preview.png)
+This integration is developed and maintained by myself (edwork@) and a small group of contributors. We are not affiliated with Peloton. If you would like to show your support you're welcome to buy me a coffee!
 
-### Under the Hood
-This integration uses [Pylotoncycle](https://pypi.org/project/pylotoncycle/) to poll Peloton's API. Keep in mind that polling won't be instant when creating Automations. 
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/edwork)
 
-### Integration Installation
-#### Using HACS
+Please join our community discussion [here](https://community.home-assistant.io/t/peloton-support/72555) on the HomeAssistant Forms.
 
-#### Manually Copy Files
-Download this repository and place the `custom_components/peloton/` directory within a folder called `custom_components/` in the root of your HomeAssistant Configuration directory. A forced reboot of HomeAssistant may be required in order for HomeAssistant to silence errors about missing dependancies (which will be installed upon reboot). 
+## Overview
 
-### configuration.yaml (UI Based Config Coming Soon™)
-A simple sensor configuration is required:
+HomeAssistant-Peloton-Sensor is an integration for [HomeAssistant](https://www.home-assistant.io/) that exposes your latest or current Peloton Workout session as a sensor. This can be useful to toggle lights, fans, or scenes according to your workout.
 
-```
-sensor:
-  - platform: peloton
-    username: thedude
-    password: paSSw0rdz
-  - platform: peloton
-    username: thedudette
-    password: paSSw0rdz
-```
+This integration creates one of the below sensors for each user. The "Workout" binary sensor registers itself as a device with all other sensors created as entities.
 
-This will give you a sensor named `sensor.peloton_USERNAME` - allowing for multiple instances!
+| Sensor Name              | Sensor Type             | Unit of Measurement | Attributes                                                                                      | Notes                                                         |
+| ------------------------ | ----------------------- | ------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Workout                  | Binary Sensor (Running) | -                   | Workout Type, Device Type, Ride Title, Ride Description, Workout Image, FTP, Instructor, Paused | On/running when user is working out.                          |
+| Cadence: Average         | Sensor                  | rpm                 |                                                                                                 |                                                               |
+| Cadence: Max             | Sensor                  | rpm                 |                                                                                                 |                                                               |
+| Calories                 | Sensor                  | kcal                |                                                                                                 |                                                               |
+| Distance                 | Sensor                  | mi / k              |                                                                                                 | Uses unit of measurement specified in user's Peloton profile. |
+| Duration                 | Sensor                  | min                 |                                                                                                 |                                                               |
+| End Time                 | Sensor                  | -                   |                                                                                                 |                                                               |
+| Start Time               | Sensor                  | -                   |                                                                                                 |                                                               |
+| Heart Rate: Average      | Sensor                  | bpm                 |                                                                                                 |                                                               |
+| Heart Rate: Max          | Sensor                  | bpm                 |                                                                                                 |                                                               |
+| Leaderboard: Rank        | Sensor                  | -                   |                                                                                                 |                                                               |
+| Leaderboard: Total Users | Sensor                  | -                   |                                                                                                 |                                                               |
+| Power Output             | Sensor                  | Wh                  |                                                                                                 |                                                               |
+| Resistance: Average      | Sensor                  | %                   |                                                                                                 |                                                               |
+| Resistance: Max          | Sensor                  | %                   |                                                                                                 |                                                               |
+| Speed: Average           | Sensor                  | mph / kph           |                                                                                                 | Uses unit of measurement specified in user's Peloton profile. |
+| Speed: Max               | Sensor                  | mph / kph           |                                                                                                 | Uses unit of measurement specified in user's Peloton profile. |
 
-### Additional Sensors via Templating
-Sometimes it's easier to work with the state directly, which will retain state history via the recorder. 
-```
-sensor:
-  - platform: template
-    sensors:
-    power_output:
-      friendly_name: "Power Output"
-      value_template: >
-        {{ state_attr('sensor.peloton_username', "Workout Type" ) }}
-```
+## Under the Hood
+
+This integration uses [Pylotoncycle](https://pypi.org/project/pylotoncycle/) to poll Peloton's API. Keep in mind that polling won't be instant when creating Automations.
+
+## Integration Installation
+
+### Using HACS (Recommended)
+
+1. Search for and install "Peloton" in HACS.
+2. Restart Home Assistant.
+3. Set up the integration from your Home Assistant Integrations page.
+
+### Manually Copy Files
+
+1. Download this repository and place the `custom_components/peloton/` directory within `home_assistant_root/config/custom_components/`.
+2. Restart Home Assistant.
+3. Set up the integration from your Home Assistant Integrations page.
 
 ## Use Cases
-- Automate lights and fans when you start or end a workout, or when your output exceeds a certain threshold. 
+
+- Automate lights and fans when you start or end a workout, or when your output exceeds a certain threshold.
 - Motovation - make HomeAssistant remind you to workout!
 - Export your ride stats to InfluxDB.
 
-### ToDo
-* Configuration via the UI (required for official HASS integration).
-* Expose more useful information by examining the entire JSON Object or other endpoints (PRs Welcome!)
+## To Do
 
-### Final Thoughts
-Please feel free to critique the code as well as submit feature requests or additions! The Goal is to turn this into an award winning HomeAssistant Integration!
+- Expose more useful information by examining the entire JSON Object or other endpoints (PRs Welcome!)
+
+## Final Thoughts
+
+Please feel free to critique the code as well as submit feature requests or additions! The goal is to turn this into an award winning HomeAssistant Integration!

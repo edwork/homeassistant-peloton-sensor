@@ -1,0 +1,12 @@
+default_config:
+
+logger:
+  default: warn
+  logs:
+    custom_components.peloton: debug
+    pylotoncycle: debug
+    homeassistant.config_entries: debug
+
+# If you need to debug uncomment the line below (doc: https://www.home-assistant.io/integrations/debugpy/)
+debugpy:
+  start: true
