@@ -270,6 +270,7 @@ def compile_quant_data(
             else None,
             None,
             SensorDeviceClass.TIMESTAMP,
+            None,
             "mdi:timer-sand",
         ),
         PelotonStat(
@@ -280,6 +281,7 @@ def compile_quant_data(
             else datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone),
             None,
             SensorDeviceClass.TIMESTAMP,
+            None,
             "mdi:timer-sand-complete",
         ),
         PelotonStat(
