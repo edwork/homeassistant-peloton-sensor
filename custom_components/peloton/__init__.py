@@ -2,29 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 
 from dateutil import tz
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.components.sensor import SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD
-from homeassistant.const import CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, UnitOfEnergy, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pylotoncycle import PylotonCycle
 from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
 
-from .const import DOMAIN
-from .const import STARTUP_MESSAGE
-from .sensor import PelotonMetric
-from .sensor import PelotonStat
-from .sensor import PelotonSummary
+from .const import DOMAIN, STARTUP_MESSAGE
+from .sensor import PelotonMetric, PelotonStat, PelotonSummary
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -304,7 +297,7 @@ def compile_quant_data(
                 and duration_sec is not None
             )
             else None,
-            "min",
+            UnitOfTime.MINUTES,
             None,
             SensorStateClass.MEASUREMENT,
             "mdi:timer-outline",
@@ -327,13 +320,13 @@ def compile_quant_data(
         ),
         PelotonStat(
             "Power Output",
-            round(total_work / 3600, 4)  # Converts joules to kWh
+            round(total_work / 3600, 4)  # Converts joules to Wh
             if "total_work" in workout_stats_summary
             and isinstance(total_work := workout_stats_summary.get("total_work"), float)
             else None,
-            "Wh",
+            UnitOfEnergy.WATT_HOUR,
             SensorDeviceClass.ENERGY,
-            SensorStateClass.MEASUREMENT,
+            SensorStateClass.TOTAL,
             None,
         ),
         PelotonStat(
