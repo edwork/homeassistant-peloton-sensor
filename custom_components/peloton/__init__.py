@@ -126,10 +126,22 @@ def compile_quant_data(
     summary: dict
     summaries: dict = {}
     for summary in workout_stats_detail.get("summaries", []):
-        if summary.get("slug") == "calories":
+        if summary.get("slug") == "total_calories" or summary.get("slug") == "calories":
             summaries.update(
                 {
-                    "calories": PelotonSummary(
+                    "total_calories": PelotonSummary(
+                        value  # Convert kcal to Wh
+                        if isinstance((value := summary.get("value")), int)
+                        else None,
+                        str(summary.get("display_unit")),
+                        None,
+                    )
+                }
+            )
+        if summary.get("slug") == "active_calories":
+            summaries.update(
+                {
+                    "active_calories": PelotonSummary(
                         value  # Convert kcal to Wh
                         if isinstance((value := summary.get("value")), int)
                         else None,
@@ -333,10 +345,18 @@ def compile_quant_data(
             "mdi:map-marker-distance",
         ),
         PelotonStat(
-            "Calories",
-            getattr(summaries.get("calories"), "total", None),
-            getattr(summaries.get("calories"), "unit", None),
-            getattr(summaries.get("calories"), "device_class", None),
+            "Total Calories",
+            getattr(summaries.get("total_calories"), "total", None),
+            getattr(summaries.get("total_calories"), "unit", None),
+            getattr(summaries.get("total_calories"), "device_class", None),
+            SensorStateClass.MEASUREMENT,
+            "mdi:fire",
+        ),
+        PelotonStat(
+            "Active Calories",
+            getattr(summaries.get("active_calories"), "total", None),
+            getattr(summaries.get("active_calories"), "unit", None),
+            getattr(summaries.get("active_calories"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:fire",
         ),
