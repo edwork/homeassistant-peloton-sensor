@@ -2,29 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 
 from dateutil import tz
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.components.sensor import SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD
-from homeassistant.const import CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pylotoncycle import PylotonCycle
 from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
 
-from .const import DOMAIN
-from .const import STARTUP_MESSAGE
-from .sensor import PelotonMetric
-from .sensor import PelotonStat
-from .sensor import PelotonSummary
+from .const import DOMAIN, STARTUP_MESSAGE
+from .sensor import PelotonMetric, PelotonStat, PelotonSummary
 
 _LOGGER = logging.getLogger(__name__)
 
