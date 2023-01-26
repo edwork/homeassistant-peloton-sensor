@@ -95,7 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Store coordinator
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
@@ -270,7 +270,7 @@ def compile_quant_data(
             else None,
             None,
             SensorDeviceClass.TIMESTAMP,
-            SensorStateClass.MEASUREMENT,
+            None,
             "mdi:timer-sand",
         ),
         PelotonStat(
@@ -281,7 +281,7 @@ def compile_quant_data(
             else datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone),
             None,
             SensorDeviceClass.TIMESTAMP,
-            SensorStateClass.MEASUREMENT,
+            None,
             "mdi:timer-sand-complete",
         ),
         PelotonStat(
