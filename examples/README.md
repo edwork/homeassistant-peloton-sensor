@@ -2,61 +2,122 @@
 
 An example markdown card, showing all available attributes
 
-The Current metrics section is only displayed when resistance > 0 (implying the bike is currently in use)
+The Current metrics section is only displayed when the bike is currently in use
 
-You will need to search/replace `sensor.peloton_username` with own sensor name
+You will need to search/replace `peloton_username` with own user name
 
 ## Preview
 
-![Preview](./assets/markdown_preview.jpg)
+To Be Added
+
+<!-- ![Preview](./assets/markdown_preview.jpg) -->
 
 ## Yaml (for Lovelace)
 
 ````
 type: markdown
-content: >+
-  {% if state_attr('sensor.peloton_username', "Resistance %") | float > 0 -%}
+content: >-
+  {% if is_state('binary_sensor.ed_on_peloton_workout', 'on') %}
+
   ### Current Metrics:
 
-  <font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> **Heart Rate (bpm):** {{ state_attr('sensor.peloton_username', "Heart Rate Bpm") }}
-  <font color="darkorange"><ha-icon icon="mdi:omega"></ha-icon></font> **Resistance (%):** {{ state_attr('sensor.peloton_username', "Resistance %") }}
-  <font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font> **Speed (Mph):** {{ state_attr('sensor.peloton_username', "Speed Mph") }}
-  <font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font> **Speed (Kph):** {{ state_attr('sensor.peloton_username', "Speed Kph") }}
-  <font color="mediumseagreen"><ha-icon icon="mdi:sine-wave"></ha-icon></font> **Cadence Rpm:** {{ state_attr('sensor.peloton_username', "Cadence Rpm") }}
-  <font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font> **Power (W):** {{ state_attr('sensor.peloton_username', "Power W") }}
+  | | | |
 
-  ---
+  |:---|:---|---:| 
 
-  {%- endif %}
+  |<font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font>|
+  **Heart Rate (bpm):** | {{ states('sensor.ed_on_peloton_heart_rate_current')
+  }} |
 
-  ### Latest Workout Summary:
+  |<font color="darkorange"><ha-icon icon="mdi:omega"></ha-icon></font>|
+  **Resistance (%):** | {{ states('sensor.ed_on_peloton_resistance_current') }}
+  |
 
-  <ha-icon icon="mdi:calendar-range"></ha-icon>  - **Date:** {{ state_attr('sensor.peloton_username', "Start Time")|float|timestamp_custom('%Y/%m/%d &raquo; %H:%M') }} - {{ state_attr('sensor.peloton_username', "End Time")|float|timestamp_custom('%H:%M') }} ({{ state_attr('sensor.peloton_username', "Duration Min") }} mins)
+  |<font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font>|
+  **Speed (Mph):** | {{ states('sensor.ed_on_peloton_speed_current') }} |
 
-  {% if (state_attr('sensor.peloton_username', 'Workout Image')|string != 'None') %}
-    <img src="{{ state_attr('sensor.peloton_username', "Workout Image") }}">
+  |<font color="mediumseagreen"><ha-icon icon="mdi:sine-wave"></ha-icon></font>|
+  **Cadence (Rpm):** | {{ states('sensor.ed_on_peloton_cadence_current') }} |
+
   {% endif %}
 
-  **{{ state_attr('sensor.peloton_username', "Ride Title") }} ({{ state_attr('sensor.peloton_username', "Workout Type") }})**
-  - *{{ state_attr('sensor.peloton_username', "Description") }}*
-  - Instructor: {{ state_attr('sensor.peloton_username', "Instructor") }}
+   ### Latest Workout Summary:
+  <ha-icon icon="mdi:calendar-range"></ha-icon> **Date**: {{
+  states('sensor.ed_on_peloton_start_time') | as_timestamp |
+  timestamp_custom("%m-%d-%Y")}}
 
-  ---
+  <ha-icon icon="mdi:clock-in"></ha-icon> **start time**: {{
+  states('sensor.ed_on_peloton_start_time') | as_timestamp |
+  timestamp_custom("%H:%M")}}
+
+  <ha-icon icon="mdi:clock-out"></ha-icon> **end time**: {{
+  states('sensor.ed_on_peloton_end_time') | as_timestamp |
+  timestamp_custom("%H:%M") }} 
+
+  **Duration**: {{ states('sensor.ed_on_peloton_duration') }} min
+
+
+  {% if (state_attr('binary_sensor.ed_on_peloton_workout', 'Workout
+  Image')|string != 'None') %}
+     <img src="{{ state_attr('binary_sensor.ed_on_peloton_workout', 'Workout Image') }}">
+  {% endif %}
+
+
+  **{{ state_attr('binary_sensor.ed_on_peloton_workout', 'Ride Title') }} ({{
+  state_attr('binary_sensor.ed_on_peloton_workout', 'Workout Type') }})**
+
+  {{ state_attr('binary_sensor.ed_on_peloton_workout', 'Ride Description') }}
+
+  Instructor: {{ state_attr('binary_sensor.ed_on_peloton_workout', 'Instructor')
+  }}
+
 
   ### Latest Workout Metrics:
 
-  <font color="royalblue"><ha-icon icon="mdi:map-marker-distance"></ha-icon></font>  - **Distance (Mi):** {{ state_attr('sensor.peloton_username', "Distance Mi") | float | round(2) }}
-  <font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font> - **Heart Rate (bpm):** {{ state_attr('sensor.peloton_username', "Heart Rate Average Bpm") | float | round(0) }} avg / {{ state_attr('sensor.peloton_username', "Heart Rate Max Bpm")  | float | round(0) }} max
-  <font color="darkorange"><ha-icon icon="mdi:omega"></ha-icon></font> - **Resistance:** {{ state_attr('sensor.peloton_username', "Resistance Average %") | float | round(0) }}% avg / {{ state_attr('sensor.peloton_username', "Resistance Max %") | float | round(0) }}% max
-  <font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font> - **Speed (Mph):** {{ state_attr('sensor.peloton_username', "Speed Average Mph")  | float | round(2) }}  avg / {{ state_attr('sensor.peloton_username', "Speed Max Mph")  | float | round(2) }} max
-  <font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font> - **Speed (Kph):** {{ state_attr('sensor.peloton_username', "Speed Average Kph")  | float | round(2) }}  avg / {{ state_attr('sensor.peloton_username', "Speed Max Kph")  | float | round(2) }} max
-  <font color="mediumseagreen"><ha-icon icon="mdi:sine-wave"></ha-icon></font> - **Cadence (Rpm):** {{ state_attr('sensor.peloton_username', "Cadence Average Rpm")  | float | round(0) }} avg / {{ state_attr('sensor.peloton_username', "Cadence Max Rpm")  | float | round(0) }} max
-  <font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font> - **Power (W):** {{ state_attr('sensor.peloton_username', "Power Average W")  | float | round(2) }} avg / {{ state_attr('sensor.peloton_username', "Power Max W")  | float | round(2) }} max
-  <font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font> - **Total Work:** {{ state_attr('sensor.peloton_username', "Total Work")  | float | round(0) }} J
-  <font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font> - **Output (KJ):** {{ state_attr('sensor.peloton_username', "Output Kj")  | float | round(2) }}
-  <font color="crimson"><ha-icon icon="mdi:food"></ha-icon></font> - **Calories (KCal):** {{ state_attr('sensor.peloton_username', "Calories KCal") }}
-  {% if state_attr('sensor.peloton_username', "Leaderboard Rank") != "None" -%}
-  <font color="yellowgreen"><ha-icon icon="mdi:chevron-triple-up"></ha-icon></font> - **Leaderboard Rank:** {{ state_attr('sensor.peloton_username', "Leaderboard Rank") }} / {{ state_attr('sensor.peloton_username', "Leaderboard Users") }} ({{ 100 - (100 * (state_attr('sensor.peloton_username', "Leaderboard Rank") | int ) / (state_attr('sensor.peloton_username', "Leaderboard Users") | int)) | round(0) }}%)
+  | | | |
+
+  |:------------------------|:-------------------------------|------------------------------------------:| 
+
+  |<font color="royalblue"><ha-icon
+  icon="mdi:map-marker-distance"></ha-icon></font>| **Distance (Mi):** | {{
+  states('sensor.ed_on_peloton_distance') | float | round(2) }} |
+
+  |<font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font>|
+  **Heart Rate (bpm):** | {{ states('sensor.ed_on_peloton_heart_rate_average') |
+  float | round(0) }} avg / {{ states('sensor.ed_on_peloton_heart_rate_max')  |
+  float | round(0) }} max
+   |
+  |<font color="darkorange"><ha-icon icon="mdi:omega"></ha-icon></font>|
+  **Resistance:** | {{ states('sensor.ed_on_peloton_resistance_average') | float
+  | round(0) }}% avg / {{ states('sensor.ed_on_peloton_resistance_max') | float
+  | round(0) }}% max
+   |
+  |<font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font>|
+  **Speed (Mph):** | {{ states('sensor.ed_on_peloton_speed_average')  | float |
+  round(2) }}  avg / {{ states('sensor.ed_on_peloton_speed_max')  | float |
+  round(2) }} max
+   |
+  |<font color="mediumseagreen"><ha-icon icon="mdi:sine-wave"></ha-icon></font>|
+  **Cadence (Rpm):** | {{ states('sensor.ed_on_peloton_cadence_average')  |
+  float | round(0) }} avg / {{ states('sensor.ed_on_peloton_cadence_max')  |
+  float | round(0) }} max
+   |
+  |<font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font>|
+  **Power (W):** | {{ states('sensor.ed_on_peloton_power_output')  | float |
+  round(2) }}
+   |
+   |<font color="orangered"><ha-icon icon="mdi:lightning-bolt"></ha-icon></font>| **Output (KJ):**  |  {{ states('sensor.ed_on_peloton_total_output')  | float | round(2) }}
+   |
+   |<font color="crimson"><ha-icon icon="mdi:food"></ha-icon></font>| **Calories (KCal):** | {{ states('sensor.ed_on_peloton_active_calories') }}
+   |
+   |<font color="yellowgreen"><ha-icon icon="mdi:chevron-triple-up"></ha-icon></font>| **Leaderboard Rank:**  | {% if states('sensor.ed_on_peloton_leaderboard_rank') != "None" -%}
+  {{ states('sensor.ed_on_peloton_leaderboard_rank') }} / {{
+  states('sensor.ed_on_peloton_leaderboard_total_users') }} ({{ 100 - (100 *
+  (states('sensor.ed_on_peloton_leaderboard_rank') | int ) /
+  (states('sensor.ed_on_peloton_leaderboard_total_users') | int)) | round(0)
+  }}%)
+
   {%- endif %}
-theme: solarized_light
+   |
+title: Peloton Card Template
 ````
