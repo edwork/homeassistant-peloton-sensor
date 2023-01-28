@@ -41,7 +41,7 @@ content: >-
 
   {% endif %}
 
-   ### Latest Workout Summary:
+  ### Latest Workout Summary:
   <ha-icon icon="mdi:calendar-range"></ha-icon> **Date**: {{
   states('sensor.ed_on_peloton_start_time') | as_timestamp |
   timestamp_custom("%m-%d-%Y")}}
