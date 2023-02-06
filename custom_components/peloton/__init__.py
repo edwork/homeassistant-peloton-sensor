@@ -8,16 +8,26 @@ import logging
 from dateutil import tz
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, UnitOfEnergy, UnitOfTime
+from homeassistant.const import (
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    PERCENTAGE,
+    REVOLUTIONS_PER_MINUTE,
+    UnitOfEnergy,
+    UnitOfLength,
+    UnitOfSpeed,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pylotoncycle import PylotonCycle
 from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
 
 from .const import DOMAIN, STARTUP_MESSAGE
-from .sensor import PelotonMetric, PelotonStat, PelotonSummary
+from .sensor import PelotonMetric, PelotonStat, PelotonSummary, PelotonWorkouts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +66,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise UpdateFailed("Could not connect to Peloton.") from err
 
         workout_stats_summary_id = workout_stats_summary["id"]
-
+        user_profile = await hass.async_add_executor_job(api.GetMe)
+        user_settings = await hass.async_add_executor_job(api.GetSettings)
         return {
             "workout_stats_detail": (
                 workout_stats_detail := await hass.async_add_executor_job(
@@ -68,9 +79,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "quant_data": compile_quant_data(
                 workout_stats_summary=workout_stats_summary,
                 workout_stats_detail=workout_stats_detail,
+                user_profile=user_profile,
+                user_settings=user_settings,
             ),
         }
-
+    
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
@@ -103,7 +116,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def compile_quant_data(
-    workout_stats_summary: dict, workout_stats_detail: dict
+    workout_stats_summary: dict, workout_stats_detail: dict, user_profile: dict, user_settings: dict
 ) -> list[PelotonStat]:
     """Compiles list of quantative data."""
 
@@ -113,6 +126,12 @@ def compile_quant_data(
         if (raw_tz := workout_stats_summary.get("timezone"))
         else tz.gettz("UTC")
     )
+
+    #Get distance unit from user settings page
+    if "distance_unit" in user_settings:
+        distance_unit = user_settings["distance_unit"] 
+    else:
+        distance_unit = None
 
     # Preprocess Summaries
 
@@ -151,7 +170,7 @@ def compile_quant_data(
                         if isinstance((value := summary.get("value")), float)
                         else None,
                         str(summary.get("display_unit")),
-                        None,
+                        SensorDeviceClass.DISTANCE,
                     )
                 }
             )
@@ -223,7 +242,7 @@ def compile_quant_data(
                         if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), float)
                         else None,
                         str(metric.get("display_unit")),
-                        None,
+                        SensorDeviceClass.SPEED,
                     )
                 }
             )
@@ -264,8 +283,107 @@ def compile_quant_data(
                 }
             )
 
-    # Build and return list.
+    # Preprocess Workout Counts
+    workouts: dict = {}
+    for workout in user_profile.get("workout_counts", []):
+        if workout.get("slug") == "bike_bootcamp":
+            workouts.update(
+                {
+                    "bike_bootcamp": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "caesar":
+            workouts.update(
+                {
+                    "rowing": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "caesar_bootcamp":
+            workouts.update(
+                {
+                    "row_bootcamp": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "cardio":
+            workouts.update(
+                {
+                    "cardio": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "circuit":
+            workouts.update(
+                {
+                    "tread_bootcamp": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "cycling":
+            workouts.update(
+                {
+                    "cycling": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "meditation":
+            workouts.update(
+                {
+                    "meditation": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "running":
+            workouts.update(
+                {
+                    "running": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "strength":
+            workouts.update(
+                {
+                    "strength": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "stretching":
+            workouts.update(
+                {
+                    "stretching": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "walking":
+            workouts.update(
+                {
+                    "walking": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
+        if workout.get("slug") == "yoga":
+            workouts.update(
+                {
+                    "yoga": PelotonWorkouts(
+                        workout.get("count")
+                    )
+                }
+            )
 
+    # Build and return list.
     return [
         PelotonStat(
             "Start Time",
@@ -332,7 +450,7 @@ def compile_quant_data(
         PelotonStat(
             "Distance",
             getattr(summaries.get("distance"), "total", None),
-            getattr(summaries.get("distance"), "unit", None),
+            UnitOfLength.MILES if distance_unit == "imperial" else UnitOfLength.KILOMETERS if distance_unit == 'metric' else None,
             getattr(summaries.get("distance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:map-marker-distance",
@@ -388,7 +506,7 @@ def compile_quant_data(
         PelotonStat(
             "Resistance: Average",
             getattr(metrics.get("resistance"), "avg_val", None),
-            getattr(metrics.get("resistance"), "unit", None),
+            PERCENTAGE,
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:network-strength-2",
@@ -396,7 +514,7 @@ def compile_quant_data(
         PelotonStat(
             "Resistance: Max",
             getattr(metrics.get("resistance"), "max_val", None),
-            getattr(metrics.get("resistance"), "unit", None),
+            PERCENTAGE,
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:network-strength-4",
@@ -404,7 +522,7 @@ def compile_quant_data(
         PelotonStat(
             "Resistance: Current",
             getattr(metrics.get("resistance"), "value", None),
-            getattr(metrics.get("resistance"), "unit", None),
+            PERCENTAGE,
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:network-strength-1",
@@ -412,7 +530,7 @@ def compile_quant_data(
         PelotonStat(
             "Speed: Average",
             getattr(metrics.get("speed"), "avg_val", None),
-            getattr(metrics.get("speed"), "unit", None),
+            UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:speedometer-medium",
@@ -420,7 +538,7 @@ def compile_quant_data(
         PelotonStat(
             "Speed: Max",
             getattr(metrics.get("speed"), "max_val", None),
-            getattr(metrics.get("speed"), "unit", None),
+            UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:speedometer",
@@ -428,7 +546,7 @@ def compile_quant_data(
         PelotonStat(
             "Speed: Current",
             getattr(metrics.get("speed"), "value", None),
-            getattr(metrics.get("speed"), "unit", None),
+            UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:speedometer-slow",
@@ -436,7 +554,7 @@ def compile_quant_data(
         PelotonStat(
             "Cadence: Average",
             getattr(metrics.get("cadence"), "avg_val", None),
-            getattr(metrics.get("cadence"), "unit", None),
+            REVOLUTIONS_PER_MINUTE,
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:fan",
@@ -444,7 +562,7 @@ def compile_quant_data(
         PelotonStat(
             "Cadence: Max",
             getattr(metrics.get("cadence"), "max_val", None),
-            getattr(metrics.get("cadence"), "unit", None),
+            REVOLUTIONS_PER_MINUTE,
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:fan-chevron-up",
@@ -452,9 +570,105 @@ def compile_quant_data(
         PelotonStat(
             "Cadence: Current",
             getattr(metrics.get("cadence"), "value", None),
-            getattr(metrics.get("cadence"), "unit", None),
+            REVOLUTIONS_PER_MINUTE,
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:fan-clock",
+        ),
+        PelotonStat(
+            "Bike Bootcamp count",
+            getattr(workouts.get("bike_bootcamp"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:bike",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Rowing count",
+            native_value=getattr(workouts.get("rowing"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:rowing",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Row Bootcamp count",
+            native_value=getattr(workouts.get("row_bootcamp"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:rowing",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Cardio count",
+            native_value=getattr(workouts.get("cardio"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:heart",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Tread Bootcamp count",
+            native_value=getattr(workouts.get("tread_bootcamp"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:run-fast",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Cycling count",
+            native_value=getattr(workouts.get("cycling"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:bike",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Meditation count",
+            native_value=getattr(workouts.get("meditation"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:meditation",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Running count",
+            native_value=getattr(workouts.get("running"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:run-fast",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Strength count",
+            native_value=getattr(workouts.get("strength"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:weight-lifter",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Stretching count",
+            native_value=getattr(workouts.get("stretching"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:gymnastics",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Walking count",
+            native_value=getattr(workouts.get("walking"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:walk",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+        ),
+        PelotonStat(
+            name="Yoga count",
+            native_value=getattr(workouts.get("yoga"), "count", None),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            icon="mdi:yoga",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
         ),
     ]
