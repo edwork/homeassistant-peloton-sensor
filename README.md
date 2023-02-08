@@ -38,6 +38,7 @@ This integration creates one of the below sensors for each user. The "Workout" b
 | Resistance: Max          | Sensor                  | %                   |                                                                                                 |                                                               |
 | Speed: Average           | Sensor                  | mph / kph           |                                                                                                 | Uses unit of measurement specified in user's Peloton profile. |
 | Speed: Max               | Sensor                  | mph / kph           |                                                                                                 | Uses unit of measurement specified in user's Peloton profile. |
+| Workout count               | Sensor                  |            |                                                                                                 | `These sensors are disabled by default.` <br> Available types: <br>   - Bike Bootcamp <br>   - Cardio <br>   - Cycling <br>   - Meditation <br>   - Row Bootcamp <br>   - Rowing <br>   - Running <br>   - Strength <br>   - Stretching <br>   - Tread Bootcamp <br>   - Walking <br>   - Yoga|
 
 ## Under the Hood
 

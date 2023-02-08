@@ -1,3 +1,3 @@
-pre-commit==3.0.1
+pre-commit==3.0.4
 pylotoncycle==0.6.0
 pylint_strict_informational==0.1
