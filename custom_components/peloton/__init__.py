@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import logging
 
-from dateutil import tz
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -22,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 from pylotoncycle import PylotonCycle
 from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
@@ -76,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
             "workout_stats_summary": workout_stats_summary,
             "user_profile": await hass.async_add_executor_job(api.GetMe),
-            "quant_data": compile_quant_data(
+            "quant_data": await compile_quant_data(
                 workout_stats_summary=workout_stats_summary,
                 workout_stats_detail=workout_stats_detail,
                 user_profile=user_profile,
@@ -115,16 +115,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return bool(unload_ok)
 
 
-def compile_quant_data(
+async def compile_quant_data(
     workout_stats_summary: dict, workout_stats_detail: dict, user_profile: dict, user_settings: dict
 ) -> list[PelotonStat]:
     """Compiles list of quantative data."""
 
     # Get Timezone
     user_timezone = (
-        tz.gettz(raw_tz)
+        await dt_util.async_get_time_zone(raw_tz)
         if (raw_tz := workout_stats_summary.get("timezone"))
-        else tz.gettz("UTC")
+        else await dt_util.async_get_time_zone("UTC")
     )
 
     #Get distance unit from user settings page
