@@ -1,17 +1,29 @@
 {
-  "config": {
-    "error": {
-      "cannot_connect": "Failed to connect",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
-    },
-    "step": {
-      "user": {
-        "data": {
-          "username": "Username",
-          "password": "Password"
+    "config": {
+        "abort": {
+            "already_configured": "Peloton account is already configured",
+            "reauth_successful": "Re-authentication was successful"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "description": "Log in to your Peloton account.",
+                "data": {
+                    "username": "Username",
+                    "password": "Password"
+                }
+            },
+            "reauth_confirm": {
+                "description": "Reauthenticate with your Peloton account credentials.",
+                "data": {
+                    "username": "Username",
+                    "password": "Password"
+                }
+            }
         }
-      }
     }
-  }
 }
