@@ -40,7 +40,7 @@ async def async_validate_input(
         )
         await hass.async_add_executor_job(api.GetMe)
     except PelotonLoginException as err:
-        _LOGGER.warning("Username or password incorrect")
+        _LOGGER.error("Username or password incorrect")
         raise InvalidAuth from err
     except (ConnectionError, Timeout) as err:
         raise CannotConnect("Could not connect to Peloton.") from err
@@ -51,7 +51,51 @@ async def async_validate_input(
 class PelotonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
     """Handle a config flow for Home Assistant Peloton Sensor integration."""
 
-    VERSION = 1
+    VERSION = 2
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
+        """Handle re-authentication with Peloton."""
+
+        self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+            self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm re-authentication with Peloton."""
+
+        errors: dict[str, str] = {}
+
+        if user_input:
+            try:
+                api = await async_validate_input(self.hass, user_input)
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                assert self.entry is not None
+
+                self.hass.config_entries.async_update_entry(
+                    self.entry,
+                    data={
+                        **self.entry.data,
+                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    },
+                )
+
+                await self.hass.config_entries.async_reload(self.entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=STEP_USER_DATA_SCHEMA,
+            errors=errors,
+        )
 
     async def async_step_user(
         self, user_input: dict[str, str] | None = None
@@ -77,6 +121,9 @@ class PelotonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
+                await self.async_set_unique_id(user_input[CONF_USERNAME])
+                self._abort_if_unique_id_configured()
+
                 return self.async_create_entry(
                     title=f"{INTEGRATION_NAME}: {api.username}", data=user_input
                 )

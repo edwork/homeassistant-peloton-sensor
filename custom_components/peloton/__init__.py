@@ -50,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             PylotonCycle, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD]
         )
     except PelotonLoginException as err:
-        _LOGGER.warning("Peloton username or password incorrect")
+        _LOGGER.error("Peloton username or password incorrect")
         raise ConfigEntryAuthFailed from err
     except (ConnectionError, Timeout) as err:
         raise UpdateFailed("Could not connect to Peloton.") from err
@@ -113,6 +113,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return bool(unload_ok)
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate old entry."""
+
+    if entry.version < 2:
+        _LOGGER.info("Migrating Peloton config entry to version 2")
+
+        hass.config_entries.async_update_entry(
+            entry,
+            unique_id=entry.data[CONF_USERNAME],
+            version=2
+        )
+
+    return True
 
 async def calculate_end_time(
         start_time: datetime.datetime | None,
@@ -256,7 +270,7 @@ async def compile_quant_data(
                         if isinstance((avg_val := metric.get("average_value")), int)
                         else None,
                         int(val)
-                        if isinstance((val := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values") and isinstance((val := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         str(metric.get("display_unit")),
                         None,
@@ -274,7 +288,7 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         "%",
                         None,
@@ -291,8 +305,8 @@ async def compile_quant_data(
                         avg
                         if isinstance((avg := metric.get("average_value")), float)
                         else None,
-                       value
-                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), float)
+                        value
+                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), float)
                         else None,
                         str(metric.get("display_unit")),
                         SensorDeviceClass.SPEED,
@@ -310,7 +324,7 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         "rpm",
                         None,
@@ -328,7 +342,7 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
                         else None,
                         "W",
                         SensorDeviceClass.POWER,
