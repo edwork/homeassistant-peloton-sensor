@@ -114,17 +114,70 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return bool(unload_ok)
 
+async def calculate_end_time(
+        start_time: datetime.datetime | None,
+        end_time: datetime.datetime | None,
+        workout_duration: int | None
+        ) -> datetime.datetime | None:
+    """If workout end time is the same as the start time, workout end time
+    is calculated using the workout duration. Otherwise, the end time returned by the
+    API is used.
+    """
+
+    if start_time and end_time:
+        if start_time == end_time:
+            if workout_duration is not None:
+                _LOGGER.debug("Workout end time is being calculated using workout duration.")
+                return start_time + timedelta(seconds=workout_duration)
+            else:
+                return end_time
+        else:
+            return end_time
+    else:
+        return end_time
+        
 
 async def compile_quant_data(
     workout_stats_summary: dict, workout_stats_detail: dict, user_profile: dict, user_settings: dict
 ) -> list[PelotonStat]:
     """Compiles list of quantative data."""
 
+    # Used to tell stats dealing with "current" measurements (heart rate,
+    # resistance, etc) to only return API value if a workout is in progress.
+    workout_in_progress: bool = (
+        workout_stats_summary.get("status") == "IN_PROGRESS"
+        if workout_stats_summary.get("status")
+        else False
+    )
+
     # Get Timezone
     user_timezone = (
         await dt_util.async_get_time_zone(raw_tz)
         if (raw_tz := workout_stats_summary.get("timezone"))
         else await dt_util.async_get_time_zone("UTC")
+    )
+
+    start_time: datetime.datetime | None = (
+        datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone)
+        if "start_time" in workout_stats_summary
+        and workout_stats_summary["start_time"] is not None
+        else None
+    )
+    
+    end_time: datetime.datetime | None = (
+        datetime.fromtimestamp(workout_stats_summary["end_time"], user_timezone)
+        if "end_time" in workout_stats_summary
+        and workout_stats_summary["end_time"] is not None or not 'null'
+        else None
+    )
+
+    workout_duration: int | None = (
+        duration_sec
+        if (
+            (duration_sec := workout_stats_summary.get("ride", {}).get("duration"))
+            and duration_sec is not None
+        )
+        else None
     )
 
     #Get distance unit from user settings page
@@ -387,10 +440,7 @@ async def compile_quant_data(
     return [
         PelotonStat(
             "Start Time",
-            datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone)
-            if "start_time" in workout_stats_summary
-            and workout_stats_summary["start_time"] is not None
-            else None,
+            start_time,
             None,
             SensorDeviceClass.TIMESTAMP,
             None,
@@ -398,10 +448,11 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "End Time",
-            datetime.fromtimestamp(workout_stats_summary["end_time"], user_timezone)
-            if "end_time" in workout_stats_summary
-            and workout_stats_summary["end_time"] is not None or not 'null'
-            else datetime.fromtimestamp(workout_stats_summary["start_time"], user_timezone),
+            await calculate_end_time(
+                start_time,
+                end_time,
+                workout_duration
+            ),
             None,
             SensorDeviceClass.TIMESTAMP,
             None,
@@ -409,12 +460,8 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "Duration",
-            round((duration_sec / 60), 2)
-            if (
-                (duration_sec := workout_stats_summary.get("ride", {}).get("duration"))
-                and duration_sec is not None
-            )
-            else None,
+            round((workout_duration / 60), 2)
+            if workout_duration else workout_duration,
             UnitOfTime.MINUTES,
             None,
             SensorStateClass.MEASUREMENT,
@@ -497,7 +544,8 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "Heart Rate: Current",
-            getattr(metrics.get("heart_rate"), "value", None),
+            getattr(metrics.get("heart_rate"), "value", None)
+            if workout_in_progress else 0,
             getattr(metrics.get("heart_rate"), "unit", None),
             getattr(metrics.get("heart_rate"), "device_class", None),
             SensorStateClass.MEASUREMENT,
@@ -521,7 +569,8 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "Resistance: Current",
-            getattr(metrics.get("resistance"), "value", None),
+            getattr(metrics.get("resistance"), "value", None)
+            if workout_in_progress else 0,
             PERCENTAGE,
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
@@ -545,7 +594,8 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "Speed: Current",
-            getattr(metrics.get("speed"), "value", None),
+            getattr(metrics.get("speed"), "value", None)
+            if workout_in_progress else 0.0,
             UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
@@ -569,7 +619,8 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "Cadence: Current",
-            getattr(metrics.get("cadence"), "value", None),
+            getattr(metrics.get("cadence"), "value", None)
+            if workout_in_progress else 0,
             REVOLUTIONS_PER_MINUTE,
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,
