@@ -560,7 +560,7 @@ async def compile_quant_data(
             "Heart Rate: Current",
             getattr(metrics.get("heart_rate"), "value", None)
             if workout_in_progress else 0,
-            getattr(metrics.get("heart_rate"), "unit", None),
+            "bpm",
             getattr(metrics.get("heart_rate"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:heart-pulse",
