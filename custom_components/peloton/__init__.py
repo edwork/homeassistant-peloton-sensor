@@ -27,6 +27,7 @@ from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
 
 from .const import DOMAIN, STARTUP_MESSAGE
+from .events import fire_exercise_complete_event
 from .sensor import PelotonMetric, PelotonStat, PelotonSummary, PelotonWorkouts
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +69,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         workout_stats_summary_id = workout_stats_summary["id"]
         user_profile = await hass.async_add_executor_job(api.GetMe)
         user_settings = await hass.async_add_executor_job(api.GetSettings)
+
+        # Check if a new workout is complete and fire an event
+        if not hasattr(coordinator, "_last_seen_workout_id"):
+            coordinator._last_seen_workout_id = workout_stats_summary_id
+        workout_status = workout_stats_summary.get("status")
+        if (
+            workout_stats_summary_id is not None
+            and workout_status == "COMPLETE"
+            and getattr(coordinator, "_last_seen_workout_id", None)
+            != workout_stats_summary_id
+        ):
+            coordinator._last_seen_workout_id = workout_stats_summary_id
+
+            workout_stats_detail = await hass.async_add_executor_job(
+                api.GetWorkoutMetricsById, workout_stats_summary_id
+            )
+
+            fire_exercise_complete_event(
+                hass,
+                entry.entry_id,
+                workout_stats_summary,
+                user_profile,
+                workout_stats_detail,
+            )
+
         return {
             "workout_stats_detail": (
                 workout_stats_detail := await hass.async_add_executor_job(
