@@ -2,6 +2,8 @@
 
 from homeassistant.core import HomeAssistant
 
+from .const import DOMAIN
+
 
 def fire_exercise_complete_event(
     hass: HomeAssistant,
@@ -60,6 +62,6 @@ def fire_exercise_complete_event(
             "title": title,
             "distance": distance,
             "distance_unit": distance_unit,
-            "brand": "Peloton",
+            "domain": DOMAIN,
         },
     )
