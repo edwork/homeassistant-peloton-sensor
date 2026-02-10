@@ -6,6 +6,6 @@
   "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/edwork/homeassistant-peloton-sensor/issues",
-  "requirements": ["git+https://github.com/edwork/pylotoncycle-dev@main#pylotoncycle==0.9.1"],
+  "requirements": ["pylotoncycle==0.9.1"],
   "version": "0.12"
 }
