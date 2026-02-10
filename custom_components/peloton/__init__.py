@@ -22,9 +22,9 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
-from pylotoncycle import PylotonCycle
-from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
+
+from .peloton_api import PelotonApi, PelotonLoginException
 
 from .const import DOMAIN, STARTUP_MESSAGE
 from .sensor import PelotonMetric, PelotonStat, PelotonSummary, PelotonWorkouts
@@ -47,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Logging in and setting up session to the Peloton API")
     try:
         api = await hass.async_add_executor_job(
-            PylotonCycle, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD]
+            PelotonApi, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD]
         )
     except PelotonLoginException as err:
         _LOGGER.error("Peloton username or password incorrect")
