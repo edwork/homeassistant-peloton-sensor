@@ -83,7 +83,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 user_settings=user_settings,
             ),
         }
-    
+
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
@@ -114,6 +114,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return bool(unload_ok)
 
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate old entry."""
 
@@ -121,18 +122,17 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("Migrating Peloton config entry to version 2")
 
         hass.config_entries.async_update_entry(
-            entry,
-            unique_id=entry.data[CONF_USERNAME],
-            version=2
+            entry, unique_id=entry.data[CONF_USERNAME], version=2
         )
 
     return True
 
+
 async def calculate_end_time(
-        start_time: datetime.datetime | None,
-        end_time: datetime.datetime | None,
-        workout_duration: int | None
-        ) -> datetime.datetime | None:
+    start_time: datetime.datetime | None,
+    end_time: datetime.datetime | None,
+    workout_duration: int | None,
+) -> datetime.datetime | None:
     """If workout end time is the same as the start time, workout end time
     is calculated using the workout duration. Otherwise, the end time returned by the
     API is used.
@@ -141,18 +141,20 @@ async def calculate_end_time(
     if start_time and end_time:
         if start_time == end_time:
             if workout_duration is not None:
-                _LOGGER.debug("Workout end time is being calculated using workout duration.")
+                _LOGGER.debug(
+                    "Workout end time is being calculated using workout duration."
+                )
                 return start_time + timedelta(seconds=workout_duration)
-            else:
-                return end_time
-        else:
             return end_time
-    else:
         return end_time
-        
+    return end_time
+
 
 async def compile_quant_data(
-    workout_stats_summary: dict, workout_stats_detail: dict, user_profile: dict, user_settings: dict
+    workout_stats_summary: dict,
+    workout_stats_detail: dict,
+    user_profile: dict,
+    user_settings: dict,
 ) -> list[PelotonStat]:
     """Compiles list of quantative data."""
 
@@ -177,11 +179,14 @@ async def compile_quant_data(
         and workout_stats_summary["start_time"] is not None
         else None
     )
-    
+
     end_time: datetime.datetime | None = (
         datetime.fromtimestamp(workout_stats_summary["end_time"], user_timezone)
-        if "end_time" in workout_stats_summary
-        and workout_stats_summary["end_time"] is not None or not 'null'
+        if (
+            "end_time" in workout_stats_summary
+            and workout_stats_summary["end_time"] is not None
+        )
+        or not "null"
         else None
     )
 
@@ -194,9 +199,9 @@ async def compile_quant_data(
         else None
     )
 
-    #Get distance unit from user settings page
+    # Get distance unit from user settings page
     if "distance_unit" in user_settings:
-        distance_unit = user_settings["distance_unit"] 
+        distance_unit = user_settings["distance_unit"]
     else:
         distance_unit = None
 
@@ -270,7 +275,15 @@ async def compile_quant_data(
                         if isinstance((avg_val := metric.get("average_value")), int)
                         else None,
                         int(val)
-                        if metric.get("values") and isinstance((val := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values")
+                        and isinstance(
+                            (
+                                val := metric.get("values")[
+                                    len(metric.get("values")) - 1
+                                ]
+                            ),
+                            int,
+                        )
                         else None,
                         str(metric.get("display_unit")),
                         None,
@@ -288,7 +301,15 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values")
+                        and isinstance(
+                            (
+                                value := metric.get("values")[
+                                    len(metric.get("values")) - 1
+                                ]
+                            ),
+                            int,
+                        )
                         else None,
                         "%",
                         None,
@@ -306,7 +327,15 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), float)
                         else None,
                         value
-                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), float)
+                        if metric.get("values")
+                        and isinstance(
+                            (
+                                value := metric.get("values")[
+                                    len(metric.get("values")) - 1
+                                ]
+                            ),
+                            float,
+                        )
                         else None,
                         str(metric.get("display_unit")),
                         SensorDeviceClass.SPEED,
@@ -324,7 +353,15 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values")
+                        and isinstance(
+                            (
+                                value := metric.get("values")[
+                                    len(metric.get("values")) - 1
+                                ]
+                            ),
+                            int,
+                        )
                         else None,
                         "rpm",
                         None,
@@ -342,7 +379,15 @@ async def compile_quant_data(
                         if isinstance((avg := metric.get("average_value")), int)
                         else None,
                         int(value)
-                        if metric.get("values") and isinstance((value := metric.get("values")[len(metric.get("values"))-1]), int)
+                        if metric.get("values")
+                        and isinstance(
+                            (
+                                value := metric.get("values")[
+                                    len(metric.get("values")) - 1
+                                ]
+                            ),
+                            int,
+                        )
                         else None,
                         "W",
                         SensorDeviceClass.POWER,
@@ -354,101 +399,29 @@ async def compile_quant_data(
     workouts: dict = {}
     for workout in user_profile.get("workout_counts", []):
         if workout.get("slug") == "bike_bootcamp":
-            workouts.update(
-                {
-                    "bike_bootcamp": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"bike_bootcamp": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "caesar":
-            workouts.update(
-                {
-                    "rowing": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"rowing": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "caesar_bootcamp":
-            workouts.update(
-                {
-                    "row_bootcamp": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"row_bootcamp": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "cardio":
-            workouts.update(
-                {
-                    "cardio": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"cardio": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "circuit":
-            workouts.update(
-                {
-                    "tread_bootcamp": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"tread_bootcamp": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "cycling":
-            workouts.update(
-                {
-                    "cycling": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"cycling": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "meditation":
-            workouts.update(
-                {
-                    "meditation": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"meditation": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "running":
-            workouts.update(
-                {
-                    "running": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"running": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "strength":
-            workouts.update(
-                {
-                    "strength": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"strength": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "stretching":
-            workouts.update(
-                {
-                    "stretching": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"stretching": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "walking":
-            workouts.update(
-                {
-                    "walking": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"walking": PelotonWorkouts(workout.get("count"))})
         if workout.get("slug") == "yoga":
-            workouts.update(
-                {
-                    "yoga": PelotonWorkouts(
-                        workout.get("count")
-                    )
-                }
-            )
+            workouts.update({"yoga": PelotonWorkouts(workout.get("count"))})
 
     # Build and return list.
     return [
@@ -462,11 +435,7 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "End Time",
-            await calculate_end_time(
-                start_time,
-                end_time,
-                workout_duration
-            ),
+            await calculate_end_time(start_time, end_time, workout_duration),
             None,
             SensorDeviceClass.TIMESTAMP,
             None,
@@ -474,8 +443,7 @@ async def compile_quant_data(
         ),
         PelotonStat(
             "Duration",
-            round((workout_duration / 60), 2)
-            if workout_duration else workout_duration,
+            round((workout_duration / 60), 2) if workout_duration else workout_duration,
             UnitOfTime.MINUTES,
             None,
             SensorStateClass.MEASUREMENT,
@@ -511,7 +479,11 @@ async def compile_quant_data(
         PelotonStat(
             "Distance",
             getattr(summaries.get("distance"), "total", None),
-            UnitOfLength.MILES if distance_unit == "imperial" else UnitOfLength.KILOMETERS if distance_unit == 'metric' else None,
+            UnitOfLength.MILES
+            if distance_unit == "imperial"
+            else UnitOfLength.KILOMETERS
+            if distance_unit == "metric"
+            else None,
             getattr(summaries.get("distance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:map-marker-distance",
@@ -559,7 +531,8 @@ async def compile_quant_data(
         PelotonStat(
             "Heart Rate: Current",
             getattr(metrics.get("heart_rate"), "value", None)
-            if workout_in_progress else 0,
+            if workout_in_progress
+            else 0,
             "bpm",
             getattr(metrics.get("heart_rate"), "device_class", None),
             SensorStateClass.MEASUREMENT,
@@ -584,7 +557,8 @@ async def compile_quant_data(
         PelotonStat(
             "Resistance: Current",
             getattr(metrics.get("resistance"), "value", None)
-            if workout_in_progress else 0,
+            if workout_in_progress
+            else 0,
             PERCENTAGE,
             getattr(metrics.get("resistance"), "device_class", None),
             SensorStateClass.MEASUREMENT,
@@ -593,7 +567,11 @@ async def compile_quant_data(
         PelotonStat(
             "Speed: Average",
             getattr(metrics.get("speed"), "avg_val", None),
-            UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
+            UnitOfSpeed.MILES_PER_HOUR
+            if distance_unit == "imperial"
+            else UnitOfSpeed.KILOMETERS_PER_HOUR
+            if distance_unit == "metric"
+            else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:speedometer-medium",
@@ -601,7 +579,11 @@ async def compile_quant_data(
         PelotonStat(
             "Speed: Max",
             getattr(metrics.get("speed"), "max_val", None),
-            UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
+            UnitOfSpeed.MILES_PER_HOUR
+            if distance_unit == "imperial"
+            else UnitOfSpeed.KILOMETERS_PER_HOUR
+            if distance_unit == "metric"
+            else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:speedometer",
@@ -609,8 +591,13 @@ async def compile_quant_data(
         PelotonStat(
             "Speed: Current",
             getattr(metrics.get("speed"), "value", None)
-            if workout_in_progress else 0.0,
-            UnitOfSpeed.MILES_PER_HOUR if distance_unit == "imperial" else UnitOfSpeed.KILOMETERS_PER_HOUR if distance_unit == 'metric' else None,
+            if workout_in_progress
+            else 0.0,
+            UnitOfSpeed.MILES_PER_HOUR
+            if distance_unit == "imperial"
+            else UnitOfSpeed.KILOMETERS_PER_HOUR
+            if distance_unit == "metric"
+            else None,
             getattr(metrics.get("speed"), "device_class", None),
             SensorStateClass.MEASUREMENT,
             "mdi:speedometer-slow",
@@ -634,7 +621,8 @@ async def compile_quant_data(
         PelotonStat(
             "Cadence: Current",
             getattr(metrics.get("cadence"), "value", None)
-            if workout_in_progress else 0,
+            if workout_in_progress
+            else 0,
             REVOLUTIONS_PER_MINUTE,
             getattr(metrics.get("cadence"), "device_class", None),
             SensorStateClass.MEASUREMENT,

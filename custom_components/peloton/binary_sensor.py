@@ -1,17 +1,21 @@
 """Binary sensor API entity."""
+
 from __future__ import annotations
 
 import logging
 
 from homeassistant import core
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity_platform import DiscoveryInfoType
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.entity_platform import AddEntitiesCallback, DiscoveryInfoType
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
 from .const import DOMAIN
 

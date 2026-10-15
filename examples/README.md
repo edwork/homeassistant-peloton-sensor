@@ -4,7 +4,7 @@ An example markdown card, showing all available attributes.
 
 The Current metrics section is only displayed when the bike is currently in use.
 
-You will need to search/replace `FIRSTNAME` with your peloton profile's listed first name - as all sensors are prefixed with FIRSTNAME_on_peloton_SENSOR where firstname is given from your Peloton profile. 
+You will need to search/replace `FIRSTNAME` with your peloton profile's listed first name - as all sensors are prefixed with FIRSTNAME_on_peloton_SENSOR where firstname is given from your Peloton profile.
 
 ## Preview
 
@@ -18,7 +18,7 @@ content: >-
 {% if is_state('binary_sensor.FIRSTNAME_on_peloton_workout', 'on') %}
 ### Current Metrics:
 | | | |
-|:---|:---|---:| 
+|:---|:---|---:|
 |<font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font>| **Heart Rate (bpm):** | {{ states('sensor.FIRSTNAME_on_peloton_heart_rate_current') }} |
 |<font color="darkorange"><ha-icon icon="mdi:omega"></ha-icon></font>| **Resistance (%):** | {{ states('sensor.FIRSTNAME_on_peloton_resistance_current') }} |
 |<font color="darkorchid"><ha-icon icon="mdi:speedometer"></ha-icon></font>| **Speed (Mph):** | {{ states('sensor.FIRSTNAME_on_peloton_speed_current') }} |
@@ -28,7 +28,7 @@ content: >-
  ### Latest Workout Summary:
 <ha-icon icon="mdi:calendar-range"></ha-icon> **Date**: {{ states('sensor.FIRSTNAME_on_peloton_start_time') | as_timestamp | timestamp_custom("%m-%d-%Y")}}
 <ha-icon icon="mdi:clock-in"></ha-icon> **start time**: {{ states('sensor.FIRSTNAME_on_peloton_start_time') | as_timestamp | timestamp_custom("%H:%M")}}
-<ha-icon icon="mdi:clock-out"></ha-icon> **end time**: {{ states('sensor.FIRSTNAME_on_peloton_end_time') | as_timestamp | timestamp_custom("%H:%M") }} 
+<ha-icon icon="mdi:clock-out"></ha-icon> **end time**: {{ states('sensor.FIRSTNAME_on_peloton_end_time') | as_timestamp | timestamp_custom("%H:%M") }}
 **Duration**: {{ states('sensor.FIRSTNAME_on_peloton_duration') }} min
 
 {% if (state_attr('binary_sensor.FIRSTNAME_on_peloton_workout', 'Workout Image')|string != 'None') %}
@@ -41,7 +41,7 @@ Instructor: {{ state_attr('binary_sensor.FIRSTNAME_on_peloton_workout', 'Instruc
 
 ### Latest Workout Metrics:
 | | | |
-|:------------------------|:-------------------------------|------------------------------------------:| 
+|:------------------------|:-------------------------------|------------------------------------------:|
 |<font color="royalblue"><ha-icon icon="mdi:map-marker-distance"></ha-icon></font>| **Distance (Mi):** | {{ states('sensor.FIRSTNAME_on_peloton_distance') | float | round(2) }} |
 |<font color="firebrick"><ha-icon icon="mdi:heart-pulse"></ha-icon></font>| **Heart Rate (bpm):** | {{ states('sensor.FIRSTNAME_on_peloton_heart_rate_average') | float | round(0) }} avg / {{ states('sensor.FIRSTNAME_on_peloton_heart_rate_max')  | float | round(0) }} max
  |

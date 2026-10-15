@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Run Home Assistant from the active Python environment with this checkout's
+# integration loaded. Configuration lives in ./config (gitignored).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mkdir -p config/custom_components
+if [[ ! -f config/configuration.yaml ]]; then
+  cp .devcontainer/configuration.yaml config/configuration.yaml
+fi
+ln -sfn "${PWD}/custom_components/peloton" config/custom_components/peloton
+exec hass --config "${PWD}/config" --debug

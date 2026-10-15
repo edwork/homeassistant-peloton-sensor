@@ -1,12 +1,12 @@
 """Config flow for Home Assistant Peloton Sensor integration."""
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD
-from homeassistant.const import CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
@@ -15,8 +15,7 @@ from pylotoncycle.pylotoncycle import PelotonLoginException
 from requests.exceptions import Timeout
 import voluptuous as vol
 
-from .const import DOMAIN
-from .const import INTEGRATION_NAME
+from .const import DOMAIN, INTEGRATION_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ class PelotonConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
-            self, user_input: dict[str, Any] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Confirm re-authentication with Peloton."""
 

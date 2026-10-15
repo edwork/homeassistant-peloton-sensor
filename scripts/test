@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the test suite with coverage. Extra arguments are passed to pytest.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+python3 -m pytest --cov=custom_components.peloton --cov-report=term-missing "$@"

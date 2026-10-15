@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, "dev-*"]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest (HA ${{ matrix.ha }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read  # checkout
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Newest HA; requirements_test.txt pins the matching
+          # pytest-homeassistant-custom-component release.
+          - ha: latest
+            requirements: requirements_test.txt
+          # Oldest HA tested: the proposed minimum (2026.3.1). hacs.json still
+          # declares 2024.6.0b0 until roadmap phase 4 raises it.
+          - ha: minimum
+            requirements: requirements_test_min.txt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: ${{ matrix.requirements }}
+      - run: python -m pip install -r "$REQS"
+        env:
+          REQS: ${{ matrix.requirements }}
+      - run: python -m pytest --cov=custom_components.peloton --cov-report=term-missing

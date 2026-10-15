@@ -1,21 +1,25 @@
 """Implementation of Home Assistant Sensor entity."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from homeassistant import core
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.components.sensor import SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity_platform import DiscoveryInfoType
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.entity_platform import AddEntitiesCallback, DiscoveryInfoType
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
 from .const import DOMAIN
 
@@ -31,13 +35,12 @@ class PelotonStat:
 
     name: str
     native_value: Any
-    native_unit_of_measurement: Optional[str] = None
-    device_class: Optional[SensorDeviceClass] = None
-    state_class: Optional[SensorStateClass] = None
-    icon: Optional[str] = None
-    entity_category: Optional[EntityCategory] = None
-    entity_registry_enabled_default: Optional[bool] = True
-    
+    native_unit_of_measurement: str | None = None
+    device_class: SensorDeviceClass | None = None
+    state_class: SensorStateClass | None = None
+    icon: str | None = None
+    entity_category: EntityCategory | None = None
+    entity_registry_enabled_default: bool | None = True
 
 
 @dataclass
@@ -59,11 +62,13 @@ class PelotonSummary:
     unit: str  # Useful for mph vs kmph
     device_class: SensorDeviceClass | None
 
+
 @dataclass
 class PelotonWorkouts:
     """Hold workout count stats from user's profile."""
 
     count: int
+
 
 async def async_setup_entry(
     hass: core.HomeAssistant,
@@ -86,10 +91,13 @@ async def async_setup_entry(
         True,
     )
 
+
 class PelotonStatSensor(SensorEntity, CoordinatorEntity):  # type: ignore
     """Quantative data sensor."""
 
-    def __init__(self, coordinator: DataUpdateCoordinator, peloton_stat: PelotonStat) -> None:
+    def __init__(
+        self, coordinator: DataUpdateCoordinator, peloton_stat: PelotonStat
+    ) -> None:
         """Initialize quant stat sensor."""
         super().__init__(coordinator)
 
@@ -98,15 +106,17 @@ class PelotonStatSensor(SensorEntity, CoordinatorEntity):  # type: ignore
 
         user_id = coordinator.data.get("workout_stats_summary", {}).get("user_id")
 
-        self._attr_name = f"{coordinator.data.get('user_profile',{}).get('first_name')} on Peloton: {self.stat_name}"
+        self._attr_name = f"{coordinator.data.get('user_profile', {}).get('first_name')} on Peloton: {self.stat_name}"
 
-        self._attr_unique_id = f"{user_id}_{self.stat_name.replace(' ','_').lower()}"
+        self._attr_unique_id = f"{user_id}_{self.stat_name.replace(' ', '_').lower()}"
 
         self._attr_device_info: DeviceInfo | None = {"identifiers": {(DOMAIN, user_id)}}
 
         self._attr_entity_category = peloton_stat.entity_category
 
-        self._attr_entity_registry_enabled_default = peloton_stat.entity_registry_enabled_default
+        self._attr_entity_registry_enabled_default = (
+            peloton_stat.entity_registry_enabled_default
+        )
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""

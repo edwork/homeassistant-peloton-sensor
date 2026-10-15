@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Install lint and test dependencies into the active Python 3.14 environment
+# (use a virtualenv), then install the git hooks.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+python3 -c 'import sys; sys.exit(sys.version_info < (3, 14, 2))' || {
+  echo "scripts/setup needs Python 3.14.2 or newer (found $(python3 --version 2>&1))." >&2
+  echo "On hosts without it, use scripts/docker-check." >&2
+  exit 1
+}
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements_lint.txt -r requirements_test.txt
+pre-commit install

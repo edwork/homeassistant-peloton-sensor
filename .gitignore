@@ -26,8 +26,9 @@ env/
 htmlcov/
 coverage.xml
 
-# Local Home Assistant config used by scripts/develop
+# Local Home Assistant config used by scripts/develop and scripts/dev-docker
 /config/
+/config-docker/
 
 # Secrets and local environment
 .env

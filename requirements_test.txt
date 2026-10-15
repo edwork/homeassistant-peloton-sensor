@@ -1,0 +1,4 @@
+# Newest Home Assistant release; the plugin version pins the matching homeassistant.
+pytest-homeassistant-custom-component==0.13.372
+# Runtime dependency of the current integration. Removed in roadmap phase 2.
+pylotoncycle==0.9.1
