@@ -1,5 +1,31 @@
 {
   "duration": 1800,
+  "average_summaries": [
+    {
+      "display_name": "Avg Output",
+      "display_unit": "watts",
+      "value": 200,
+      "slug": "avg_output"
+    },
+    {
+      "display_name": "Avg Cadence",
+      "display_unit": "rpm",
+      "value": 85,
+      "slug": "avg_cadence"
+    },
+    {
+      "display_name": "Avg Resistance",
+      "display_unit": "%",
+      "value": 42,
+      "slug": "avg_resistance"
+    },
+    {
+      "display_name": "Avg Speed",
+      "display_unit": "mph",
+      "value": 17.5,
+      "slug": "avg_speed"
+    }
+  ],
   "summaries": [
     {
       "display_name": "Total Output",

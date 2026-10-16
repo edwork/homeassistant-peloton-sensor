@@ -1,14 +1,17 @@
 """Shared fixtures for Peloton tests."""
 
-from collections.abc import Generator
+import asyncio
+from collections.abc import AsyncGenerator, Generator
 import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, PropertyMock, patch
 
+from aiohttp import ClientSession
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.peloton.const import DOMAIN
 
@@ -38,6 +41,14 @@ def entity_registry_enabled_by_default() -> Generator[None]:
         return_value=True,
     ):
         yield
+
+
+@pytest.fixture
+async def session(aioclient_mock: AiohttpClientMocker) -> AsyncGenerator[ClientSession]:
+    """Return an aiohttp session whose requests are answered by aioclient_mock."""
+    client_session = aioclient_mock.create_session(asyncio.get_running_loop())
+    yield client_session
+    await client_session.close()
 
 
 @pytest.fixture

@@ -1,0 +1,33 @@
+{
+  "id": "aaaabbbbccccddddeeeeffff00001111",
+  "user_id": "0123456789abcdef0123456789abcdef",
+  "status": "COMPLETE",
+  "fitness_discipline": "cycling",
+  "device_type": "home_bike_plus",
+  "timezone": "America/New_York",
+  "created_at": 1760000000,
+  "start_time": 1760000000,
+  "end_time": 1760001800,
+  "name": "Cycling Workout",
+  "ride": {
+    "id": "00000000000000000000000000000000",
+    "title": "Just Ride",
+    "description": null,
+    "image_url": null,
+    "duration": 1800,
+    "fitness_discipline": "cycling",
+    "instructor": {
+      "name": "JUST RIDE",
+      "image_url": "https://example.invalid/just-ride.png"
+    }
+  },
+  "is_paused": false,
+  "total_work": 360000.0,
+  "leaderboard_rank": 120,
+  "total_leaderboard_users": 4000,
+  "ftp_info": {
+    "ftp": 200,
+    "ftp_source": "ftp_workout_source",
+    "ftp_workout_id": null
+  }
+}
