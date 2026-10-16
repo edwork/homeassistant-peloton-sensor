@@ -22,8 +22,6 @@ repos:
     hooks:
       - id: zizmor
         args: [--pedantic]
-        # Legacy workflows and Dependabot config are replaced in roadmap phase 4.
-        exclude: ^\.github/(dependabot\.yml|workflows/(codeql-analysis|dependency-review|hassfest)\.yml)$
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

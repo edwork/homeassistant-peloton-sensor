@@ -47,5 +47,5 @@ api-responses/
 Thumbs.db
 .idea/
 
-# Release asset (to be removed once the release workflow builds outside the integration folder)
-custom_components/peloton/peloton-sensor.zip
+# Release zip, if the release steps are run by hand
+/peloton.zip

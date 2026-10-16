@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a new sensor, workout type or other improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Check the existing issues first. Do not include your Peloton password,
+        tokens or other personal data.
+  - type: textarea
+    id: request
+    attributes:
+      label: What you would like
+      description: The sensor or behaviour you want, and what you would use it for.
+    validations:
+      required: true
+  - type: dropdown
+    id: equipment
+    attributes:
+      label: Workout type
+      options:
+        - Bike or Bike+
+        - Tread
+        - Row
+        - App (no Peloton equipment)
+        - Not workout related
+    validations:
+      required: false

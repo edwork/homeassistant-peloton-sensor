@@ -4,11 +4,13 @@ on:
   push:
     branches: [master, "dev-*"]
   pull_request:
+  workflow_call:
 
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A literal name: when called from release.yml, github.workflow is the caller's.
+  group: tests-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
