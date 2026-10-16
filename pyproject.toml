@@ -238,17 +238,8 @@ combine-as-imports = true
 split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
-# Temporary: baseline tests import pylotoncycle and requests to mock the
-# current client. Remove in phase 2 with the legacy client.
-"tests/*" = ["TID251"]
 # Command-line scripts print to stdout.
 "scripts/*" = ["T20"]
-# Legacy code that roadmap phases 1-3 replace. Remove each entry when its file
-# is rewritten; do not add new entries for new code.
-"custom_components/peloton/__init__.py" = ["C901", "D205", "SIM401", "TID251"]
-"custom_components/peloton/binary_sensor.py" = ["PGH003", "TID251"]
-"custom_components/peloton/config_flow.py" = ["F821", "F841", "PGH003", "TID251"]
-"custom_components/peloton/sensor.py" = ["PGH003", "TID251"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25

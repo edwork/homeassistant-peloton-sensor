@@ -1,142 +1,54 @@
-"""Implementation of Home Assistant Sensor entity."""
+"""Sensors for the latest Peloton workout and workout counts."""
 
-from __future__ import annotations
-
-from dataclasses import dataclass
-import logging
-from typing import Any
-
-from homeassistant import core
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback, DiscoveryInfoType
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
-
-latest_stats: dict = {}
-latest_workout: dict = {}
-
-
-@dataclass
-class PelotonStat:
-    """Hold stats from latest workout endpoint."""
-
-    name: str
-    native_value: Any
-    native_unit_of_measurement: str | None = None
-    device_class: SensorDeviceClass | None = None
-    state_class: SensorStateClass | None = None
-    icon: str | None = None
-    entity_category: EntityCategory | None = None
-    entity_registry_enabled_default: bool | None = True
-
-
-@dataclass
-class PelotonMetric:
-    """Hold stats from workout metrics endpoint."""
-
-    max_val: int | float | None
-    avg_val: int | float | None
-    value: int | float | None
-    unit: str | None  # Useful for mph vs kmph
-    device_class: SensorDeviceClass | None
-
-
-@dataclass
-class PelotonSummary:
-    """Hold summary stats from latest workout endpoint."""
-
-    total: int | float | None
-    unit: str  # Useful for mph vs kmph
-    device_class: SensorDeviceClass | None
-
-
-@dataclass
-class PelotonWorkouts:
-    """Hold workout count stats from user's profile."""
-
-    count: int
+from .coordinator import PelotonConfigEntry, PelotonCoordinator
+from .stats import PelotonStat
 
 
 async def async_setup_entry(
-    hass: core.HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,  # pylint: disable=unused-argument
-    discovery_info: DiscoveryInfoType | None = None,  # pylint: disable=unused-argument
+    hass: HomeAssistant,
+    entry: PelotonConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up entities using the binary sensor platform from this config entry."""
-
-    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    _LOGGER.debug("Creating Peloton binary sensors")
-
+    """Set up one sensor per stat."""
+    coordinator = entry.runtime_data
     async_add_entities(
-        (
-            PelotonStatSensor(coordinator=coordinator, peloton_stat=peloton_stat)
-            for peloton_stat in coordinator.data.get("quant_data", [])
-            if isinstance(peloton_stat, PelotonStat)
-        ),
+        (PelotonStatSensor(coordinator, stat) for stat in coordinator.data.stats),
         True,
     )
 
 
-class PelotonStatSensor(SensorEntity, CoordinatorEntity):  # type: ignore
-    """Quantative data sensor."""
+class PelotonStatSensor(CoordinatorEntity[PelotonCoordinator], SensorEntity):
+    """One value from the latest workout or the profile."""
 
-    def __init__(
-        self, coordinator: DataUpdateCoordinator, peloton_stat: PelotonStat
-    ) -> None:
-        """Initialize quant stat sensor."""
+    def __init__(self, coordinator: PelotonCoordinator, stat: PelotonStat) -> None:
+        """Initialize the sensor."""
         super().__init__(coordinator)
-
-        self.stat_name = peloton_stat.name
-        self.coordinator = coordinator
-
-        user_id = coordinator.data.get("workout_stats_summary", {}).get("user_id")
-
-        self._attr_name = f"{coordinator.data.get('user_profile', {}).get('first_name')} on Peloton: {self.stat_name}"
-
-        self._attr_unique_id = f"{user_id}_{self.stat_name.replace(' ', '_').lower()}"
-
-        self._attr_device_info: DeviceInfo | None = {"identifiers": {(DOMAIN, user_id)}}
-
-        self._attr_entity_category = peloton_stat.entity_category
-
+        user_id = coordinator.user_id
+        first_name = coordinator.data.user.first_name
+        self.stat_name = stat.name
+        self._attr_name = f"{first_name} on Peloton: {stat.name}"
+        self._attr_unique_id = f"{user_id}_{stat.name.replace(' ', '_').lower()}"
+        self._attr_device_info = {"identifiers": {(DOMAIN, user_id)}}
+        self._attr_entity_category = stat.entity_category
         self._attr_entity_registry_enabled_default = (
-            peloton_stat.entity_registry_enabled_default
+            stat.entity_registry_enabled_default
         )
 
-    async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
-        await super().async_added_to_hass()
-
-    @callback  # type: ignore
+    @callback
     def _handle_coordinator_update(self) -> None:
-        """Update the entity when coordinator is updated."""
-
-        peloton_stat: PelotonStat
-        for peloton_stat in self.coordinator.data.get("quant_data", []):
-            if peloton_stat.name == self.stat_name:
-                self._attr_native_value = peloton_stat.native_value
-                self._attr_native_unit_of_measurement = (
-                    peloton_stat.native_unit_of_measurement
-                )
-                self._attr_device_class = peloton_stat.device_class
-                self._attr_state_class = peloton_stat.state_class
-
-                if peloton_stat.icon:
-                    self._attr_icon = peloton_stat.icon
-
+        """Update the state from the matching stat."""
+        for stat in self.coordinator.data.stats:
+            if stat.name == self.stat_name:
+                self._attr_native_value = stat.native_value
+                self._attr_native_unit_of_measurement = stat.native_unit_of_measurement
+                self._attr_device_class = stat.device_class
+                self._attr_state_class = stat.state_class
+                if stat.icon:
+                    self._attr_icon = stat.icon
         self.async_write_ha_state()

@@ -1,422 +1,752 @@
-"""Baseline tests for setup, entities and polling.
-
-These pin down how the integration behaves before the refactor. The unique_id
-and device identifier assertions must keep passing through every roadmap
-phase. Tests and comments marked "current behaviour" document defects that
-later phases fix; those assertions are expected to change with the fix.
-"""
+"""Tests for setup, migration, token handling and polling."""
 
 from datetime import timedelta
+import time
 from typing import Any
-from unittest.mock import MagicMock
 
+from aiohttp import ClientError
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant, State
-from homeassistant.helpers import device_registry as dr, entity_registry as er
-from pylotoncycle.pylotoncycle import PelotonLoginException
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
+from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
+from homeassistant.core import HomeAssistant
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_fire_time_changed,
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+
+from custom_components.peloton.api.const import (
+    API_BASE,
+    REFRESH_MARGIN,
+    REVOKE_URL,
+    TOKEN_URL,
 )
-from requests.exceptions import ConnectionError as RequestsConnectionError, Timeout
-
-from custom_components.peloton.const import DOMAIN
-
-from .conftest import USER_ID, load_fixture
-
-# unique_id suffix -> target entity_id for a fresh install, for a user whose
-# first name is "Test". Existing installs already have these entity_ids.
-EXPECTED_ENTITIES = {
-    "workout": "binary_sensor.test_on_peloton_workout",
-    "start_time": "sensor.test_on_peloton_start_time",
-    "end_time": "sensor.test_on_peloton_end_time",
-    "duration": "sensor.test_on_peloton_duration",
-    "leaderboard:_rank": "sensor.test_on_peloton_leaderboard_rank",
-    "leaderboard:_total_users": "sensor.test_on_peloton_leaderboard_total_users",
-    "power_output": "sensor.test_on_peloton_power_output",
-    "distance": "sensor.test_on_peloton_distance",
-    "total_calories": "sensor.test_on_peloton_total_calories",
-    "active_calories": "sensor.test_on_peloton_active_calories",
-    "total_output": "sensor.test_on_peloton_total_output",
-    "heart_rate:_average": "sensor.test_on_peloton_heart_rate_average",
-    "heart_rate:_max": "sensor.test_on_peloton_heart_rate_max",
-    "heart_rate:_current": "sensor.test_on_peloton_heart_rate_current",
-    "resistance:_average": "sensor.test_on_peloton_resistance_average",
-    "resistance:_max": "sensor.test_on_peloton_resistance_max",
-    "resistance:_current": "sensor.test_on_peloton_resistance_current",
-    "speed:_average": "sensor.test_on_peloton_speed_average",
-    "speed:_max": "sensor.test_on_peloton_speed_max",
-    "speed:_current": "sensor.test_on_peloton_speed_current",
-    "cadence:_average": "sensor.test_on_peloton_cadence_average",
-    "cadence:_max": "sensor.test_on_peloton_cadence_max",
-    "cadence:_current": "sensor.test_on_peloton_cadence_current",
-    "bike_bootcamp_count": "sensor.test_on_peloton_bike_bootcamp_count",
-    "rowing_count": "sensor.test_on_peloton_rowing_count",
-    "row_bootcamp_count": "sensor.test_on_peloton_row_bootcamp_count",
-    "cardio_count": "sensor.test_on_peloton_cardio_count",
-    "tread_bootcamp_count": "sensor.test_on_peloton_tread_bootcamp_count",
-    "cycling_count": "sensor.test_on_peloton_cycling_count",
-    "meditation_count": "sensor.test_on_peloton_meditation_count",
-    "running_count": "sensor.test_on_peloton_running_count",
-    "strength_count": "sensor.test_on_peloton_strength_count",
-    "stretching_count": "sensor.test_on_peloton_stretching_count",
-    "walking_count": "sensor.test_on_peloton_walking_count",
-    "yoga_count": "sensor.test_on_peloton_yoga_count",
-}
-
-# Workout count sensors are registered but disabled by default.
-DISABLED_BY_DEFAULT = {key for key in EXPECTED_ENTITIES if key.endswith("_count")}
-
-# Binary sensor attribute keys. User templates depend on these names.
-BINARY_SENSOR_ATTRIBUTES = (
-    "Workout Type",
-    "Device Type",
-    "Ride Title",
-    "Ride Description",
-    "Workout Image",
-    "FTP",
-    "Instructor",
-    "Paused",
+from custom_components.peloton.const import (
+    DOMAIN,
+    PROFILE_REFRESH_INTERVAL,
+    SCAN_INTERVAL,
 )
 
+from .common import advance, setup_integration
+from .conftest import (
+    JSON_HEADERS,
+    PASSWORD,
+    USER_ID,
+    USERNAME,
+    WORKOUT_ID,
+    load_fixture,
+    stored_tokens,
+)
+from .peloton_api import TEXT, token_requests, token_response
 
-async def setup_integration(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    """Add the entry and set it up."""
-    entry.add_to_hass(hass)
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
-
-
-async def advance_one_poll(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    """Move time forward one 10 s update interval and let the coordinator run."""
-    freezer.tick(timedelta(seconds=10))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done(wait_background_tasks=True)
-
-
-async def refresh(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    """Run one coordinator refresh so every entity has received data.
-
-    Current behaviour: entities only read data in _handle_coordinator_update,
-    and the refresh at setup runs before they subscribe, so states stay
-    unknown until a later poll (timing varies by Home Assistant version).
-    Roadmap phase 3 sets state when entities are added; the coordinator also
-    moves from hass.data to entry.runtime_data then.
-    """
-    await hass.data[DOMAIN][entry.entry_id].async_refresh()
-    await hass.async_block_till_done()
+WORKOUTS_URL = f"{API_BASE}/api/user/{USER_ID}/workouts"
+WORKOUT_URL = f"{API_BASE}/api/workout/{WORKOUT_ID}"
+ME_URL = f"{API_BASE}/api/me"
 
 
-def state_of(hass: HomeAssistant, suffix: str) -> State:
-    """Return the state of the entity with unique_id f"{USER_ID}_{suffix}".
-
-    Looks the entity up by unique_id so the tests do not depend on the
-    entity_id a fresh install happens to get (see test_fresh_install_entity_ids).
-    """
-    domain = "binary_sensor" if suffix == "workout" else "sensor"
-    entity_id = er.async_get(hass).async_get_entity_id(
-        domain, DOMAIN, f"{USER_ID}_{suffix}"
-    )
-    assert entity_id is not None, suffix
-    state = hass.states.get(entity_id)
-    assert state is not None, entity_id
-    return state
+def grants(aioclient_mock: AiohttpClientMocker) -> list[str]:
+    """Return the grant types sent to the token endpoint, in order."""
+    return [p["grant_type"] for p in token_requests(aioclient_mock.mock_calls)]
 
 
-@pytest.mark.usefixtures("mock_peloton")
-async def test_setup_and_unload(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+def gets(aioclient_mock: AiohttpClientMocker) -> list[str]:
+    """Return the URLs (without query) of the API GET requests, in order."""
+    return [
+        str(call[1].with_query(None))
+        for call in aioclient_mock.mock_calls
+        if call[0].lower() == "get"
+    ]
+
+
+def reauth_flows(hass: HomeAssistant) -> list[dict[str, Any]]:
+    """Return the reauth flows in progress."""
+    return [
+        flow
+        for flow in hass.config_entries.flow.async_progress()
+        if flow["context"]["source"] == SOURCE_REAUTH
+    ]
+
+
+async def test_setup_uses_stored_tokens(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
 ) -> None:
-    """The entry loads and unloads cleanly."""
+    """Setup with valid stored tokens sends no token request at all."""
     await setup_integration(hass, mock_config_entry)
-    assert mock_config_entry.state is ConfigEntryState.LOADED
 
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert grants(mock_api) == []
+    # Profile and settings once, then the latest workout with its details.
+    assert gets(mock_api)[:5] == [
+        ME_URL,
+        f"{API_BASE}/api/user/{USER_ID}/settings",
+        WORKOUTS_URL,
+        WORKOUT_URL,
+        f"{WORKOUT_URL}/performance_graph",
+    ]
+
+
+async def test_restart_does_not_log_in(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+) -> None:
+    """Unloading and setting up again reuses the stored tokens."""
+    await setup_integration(hass, mock_config_entry)
     assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
     assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
 
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
-@pytest.mark.usefixtures("mock_peloton")
-async def test_unique_ids_and_device(
-    hass: HomeAssistant,
-    mock_config_entry: MockConfigEntry,
-    entity_registry: er.EntityRegistry,
-    device_registry: dr.DeviceRegistry,
-) -> None:
-    """Unique ids and the device identifier match existing installs.
-
-    Never change these: existing installs keep their entity_ids, history and
-    dashboards only while unique ids and the device identifier stay the same.
-    """
-    await setup_integration(hass, mock_config_entry)
-
-    entries = er.async_entries_for_config_entry(
-        entity_registry, mock_config_entry.entry_id
-    )
-    assert {entry.unique_id for entry in entries} == {
-        f"{USER_ID}_{suffix}" for suffix in EXPECTED_ENTITIES
-    }
-
-    disabled = {
-        entry.unique_id.removeprefix(f"{USER_ID}_")
-        for entry in entries
-        if entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
-    }
-    assert disabled == DISABLED_BY_DEFAULT
-
-    # The device name depends on which platform registers the device first
-    # (see test_fresh_install_entity_ids), so only the identifier is pinned.
-    devices = dr.async_entries_for_config_entry(
-        device_registry, mock_config_entry.entry_id
-    )
-    assert len(devices) == 1
-    assert devices[0].identifiers == {(DOMAIN, USER_ID)}
-    assert {entry.device_id for entry in entries} == {devices[0].id}
-
-
-@pytest.mark.usefixtures("mock_peloton")
-async def test_fresh_install_entity_ids(
-    hass: HomeAssistant,
-    mock_config_entry: MockConfigEntry,
-    entity_registry: er.EntityRegistry,
-) -> None:
-    """Entity ids a fresh install gets.
-
-    Current behaviour: only the binary sensor gives the device a name; sensors
-    pass identifiers only. Platforms set up concurrently, so if the sensor
-    platform registers the device first, the device takes the entry title.
-    On Home Assistant 2026.4 and newer the registry then puts that name in
-    front of the sensor entity_ids ("peloton_testrider_..."); on 2026.3 it
-    does not. Which platform wins is a race. Roadmap phase 3 (full DeviceInfo
-    on every entity, has_entity_name) should make every entity match
-    EXPECTED_ENTITIES exactly.
-    """
-    await setup_integration(hass, mock_config_entry)
-
-    entries = er.async_entries_for_config_entry(
-        entity_registry, mock_config_entry.entry_id
-    )
-    actual = {
-        entry.unique_id.removeprefix(f"{USER_ID}_"): entry.entity_id
-        for entry in entries
-    }
-    for suffix, target in EXPECTED_ENTITIES.items():
-        prefixed = target.replace("sensor.", "sensor.peloton_testrider_", 1)
-        assert actual[suffix] in (target, prefixed), suffix
-
-
-@pytest.mark.usefixtures("mock_peloton")
-async def test_completed_workout(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
-) -> None:
-    """A completed workout: binary sensor off, summary values, current values 0."""
-    await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
-
-    workout = state_of(hass, "workout")
-    assert workout.state == STATE_OFF
-    assert workout.attributes["icon"] == "mdi:bike"
-    assert {key: workout.attributes[key] for key in BINARY_SENSOR_ATTRIBUTES} == {
-        "Workout Type": "cycling",
-        "Device Type": "home_bike_plus",
-        "Ride Title": "30 min Synthetic Ride",
-        "Ride Description": "Synthetic class used in tests.",
-        "Workout Image": "https://example.invalid/ride.png",
-        "FTP": 200,
-        "Instructor": "Synthetic Instructor",
-        "Paused": False,
-    }
-
-    expected_states = {
-        "start_time": "2025-10-09T08:53:20+00:00",
-        "end_time": "2025-10-09T09:23:20+00:00",
-        "duration": "30.0",
-        "leaderboard:_rank": "120",
-        "power_output": "100.0",
-        "distance": "10.5",
-        "total_calories": "450",
-        "total_output": "360",
-        "heart_rate:_average": "140",
-        "heart_rate:_max": "165",
-        "heart_rate:_current": "0",
-        "cadence:_average": "85",
-        "cadence:_current": "0",
-        "speed:_max": "24.5",
-        "speed:_current": "0.0",
-    }
-    actual_states = {suffix: state_of(hass, suffix).state for suffix in expected_states}
-    assert actual_states == expected_states
-
-    # Units today come partly from the API's display_unit strings (issue #101).
-    expected_units = {
-        "power_output": "Wh",
-        "distance": "mi",
-        "total_calories": "kcal",
-        "total_output": "kj",
-        "heart_rate:_average": "bpm",
-        "heart_rate:_current": "bpm",
-        "speed:_max": "mph",
-    }
-    actual_units = {
-        suffix: state_of(hass, suffix).attributes.get("unit_of_measurement")
-        for suffix in expected_units
-    }
-    assert actual_units == expected_units
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert grants(mock_api) == []
 
 
 @pytest.mark.parametrize(
-    "workout", [load_fixture("workout_in_progress.json")], ids=["in_progress"]
+    "token_json", [token_response(now=time.time(), refresh_token=None)]
 )
-@pytest.mark.usefixtures("mock_peloton")
-async def test_workout_in_progress(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, workout: dict[str, Any]
+async def test_expiring_token_is_refreshed_and_saved(
+    hass: HomeAssistant, mock_api: AiohttpClientMocker
 ) -> None:
-    """An in-progress workout turns the binary sensor on and fills current values."""
-    await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
+    """A token close to expiry is refreshed at setup and the new one is stored."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id=USER_ID,
+        data={
+            CONF_USERNAME: USERNAME,
+            CONF_TOKEN: stored_tokens(expires_at=time.time() + REFRESH_MARGIN - 1),
+        },
+    )
+    old_access_token = entry.data[CONF_TOKEN]["access_token"]
 
-    binary = state_of(hass, "workout")
-    assert binary.state == STATE_ON
-    assert binary.attributes["icon"] == "mdi:bike-fast"
-    assert set(BINARY_SENSOR_ATTRIBUTES) <= set(binary.attributes)
-    assert state_of(hass, "start_time").state == "2025-10-09T08:53:20+00:00"
-    assert state_of(hass, "heart_rate:_current").state == "148"
-    assert state_of(hass, "cadence:_current").state == "88"
-    assert state_of(hass, "resistance:_current").state == "44"
-    assert state_of(hass, "speed:_current").state == "20.4"
+    await setup_integration(hass, entry)
 
-
-@pytest.mark.parametrize(
-    "workout",
-    [{**load_fixture("workout_complete.json"), "end_time": 1760000000}],
-    ids=["end_equals_start"],
-)
-@pytest.mark.usefixtures("mock_peloton")
-async def test_end_time_from_duration(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, workout: dict[str, Any]
-) -> None:
-    """An end time equal to the start time is replaced by start + duration (#86)."""
-    await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
-
-    assert state_of(hass, "start_time").state == "2025-10-09T08:53:20+00:00"
-    assert state_of(hass, "end_time").state == "2025-10-09T09:23:20+00:00"
+    assert entry.state is ConfigEntryState.LOADED
+    assert grants(mock_api) == ["refresh_token"]
+    saved = entry.data[CONF_TOKEN]
+    assert saved["access_token"] != old_access_token
+    assert saved["refresh_token"] == "stored-refresh"
+    assert saved["expires_at"] > time.time() + REFRESH_MARGIN
 
 
-@pytest.mark.usefixtures("mock_peloton", "entity_registry_enabled_by_default")
-async def test_workout_counts(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
-) -> None:
-    """Workout count sensors map API slugs to their display names."""
-    await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
-
-    expected = {
-        "cycling_count": "30",
-        "strength_count": "5",
-        "bike_bootcamp_count": "4",
-        "rowing_count": "2",  # slug "caesar"
-        "row_bootcamp_count": "6",  # slug "caesar_bootcamp"
-        "cardio_count": "1",
-        "tread_bootcamp_count": "7",  # slug "circuit"
-        "meditation_count": "8",
-        "running_count": "9",
-        "stretching_count": "3",
-        "walking_count": "10",
-        "yoga_count": "11",
-    }
-    assert {suffix: state_of(hass, suffix).state for suffix in expected} == expected
-
-
-async def test_polling_reuses_login(
+async def test_polling_cost(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_peloton: MagicMock,
+    mock_api: AiohttpClientMocker,
     freezer: FrozenDateTimeFactory,
 ) -> None:
-    """The client is created once; later polls fetch data without logging in.
-
-    Logging in happens when the pylotoncycle client is constructed, so the
-    class must be called exactly once however many polls run.
-    """
+    """While the latest workout is complete, each poll is a single request."""
     await setup_integration(hass, mock_config_entry)
-    client = mock_peloton.return_value
-    fetches_after_setup = client.GetRecentWorkouts.call_count
-    assert fetches_after_setup >= 1
+    mock_api.mock_calls.clear()
 
     for _ in range(3):
-        await advance_one_poll(hass, freezer)
+        await advance(hass, freezer)
 
-    assert client.GetRecentWorkouts.call_count == fetches_after_setup + 3
-    assert mock_peloton.call_count == 1
+    assert gets(mock_api) == [WORKOUTS_URL] * 3
+    assert grants(mock_api) == []
 
 
-async def test_poll_failure_makes_entities_unavailable(
+@pytest.mark.parametrize(
+    ("workouts_json", "workout_json"),
+    [
+        (
+            load_fixture("api/workouts.json")
+            | {
+                "data": [
+                    load_fixture("api/workouts.json")["data"][0]
+                    | {"status": "IN_PROGRESS", "end_time": None}
+                ]
+            },
+            load_fixture("api/workout.json")
+            | {"status": "IN_PROGRESS", "end_time": None},
+        )
+    ],
+    ids=["in_progress"],
+)
+async def test_polling_during_workout(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_peloton: MagicMock,
+    mock_api: AiohttpClientMocker,
     freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Current behaviour: one failed poll makes every entity unavailable.
-
-    For the fan use case this turns the workout sensor unavailable mid-ride.
-    Roadmap phase 3 keeps the binary sensor's last state through a few failed
-    polls; this assertion is expected to change then.
-    """
+    """While a workout is in progress, every poll fetches its details."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
-    assert state_of(hass, "workout").state == STATE_OFF
+    mock_api.mock_calls.clear()
 
-    mock_peloton.return_value.GetRecentWorkouts.side_effect = Timeout
-    await advance_one_poll(hass, freezer)
+    await advance(hass, freezer)
 
-    assert state_of(hass, "workout").state == STATE_UNAVAILABLE
-    assert state_of(hass, "heart_rate:_average").state == STATE_UNAVAILABLE
-
-
-async def test_no_workouts_retries_setup(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_peloton: MagicMock
-) -> None:
-    """Current behaviour: an account with no workouts cannot finish setup."""
-    mock_peloton.return_value.GetRecentWorkouts.return_value = []
-    await setup_integration(hass, mock_config_entry)
-    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert gets(mock_api) == [
+        WORKOUTS_URL,
+        WORKOUT_URL,
+        f"{WORKOUT_URL}/performance_graph",
+    ]
 
 
-async def test_login_exception_starts_reauth(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_peloton: MagicMock
-) -> None:
-    """Code path only: PelotonLoginException at setup starts a reauth flow.
-
-    Unreachable in practice: pylotoncycle 0.9.1 defines PelotonLoginException
-    but never raises it. A wrong password raises a plain Exception instead
-    (see test_setup_errors_do_not_retry).
-    """
-    mock_peloton.side_effect = PelotonLoginException
-    await setup_integration(hass, mock_config_entry)
-    assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
-    flows = hass.config_entries.flow.async_progress()
-    assert [flow["context"]["source"] for flow in flows] == ["reauth"]
-
-
-@pytest.mark.parametrize("side_effect", [Exception, Timeout, RequestsConnectionError])
-async def test_setup_errors_do_not_retry(
+async def test_new_workout_refreshes_details_and_profile(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_peloton: MagicMock,
-    side_effect: type[Exception],
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Current behaviour: login failures end setup with no retry or reauth.
-
-    pylotoncycle raises a plain Exception for a wrong password. A timeout is
-    turned into UpdateFailed, which setup does not treat as "not ready".
-    requests' ConnectionError is not the builtin ConnectionError the code
-    catches, so network errors are not handled either.
-    """
-    mock_peloton.side_effect = side_effect
+    """A status change refetches the workout and the profile (new counts)."""
     await setup_integration(hass, mock_config_entry)
+    running = load_fixture("api/workouts.json")
+    running["data"][0] |= {"status": "IN_PROGRESS"}
+    mock_api.clear_requests()
+    mock_api.get(WORKOUTS_URL, json=running, headers=JSON_HEADERS)
+    mock_api.get(ME_URL, json=load_fixture("me.json"), headers=JSON_HEADERS)
+    mock_api.get(
+        f"{API_BASE}/api/user/{USER_ID}/settings",
+        json=load_fixture("settings.json"),
+        headers=JSON_HEADERS,
+    )
+    mock_api.get(
+        f"{WORKOUT_URL}/performance_graph",
+        json=load_fixture("performance_graph.json"),
+        headers=JSON_HEADERS,
+    )
+    mock_api.get(
+        WORKOUT_URL,
+        json=load_fixture("api/workout.json") | {"status": "IN_PROGRESS"},
+        headers=JSON_HEADERS,
+    )
+
+    await advance(hass, freezer)
+
+    assert sorted(set(gets(mock_api))) == sorted(
+        {
+            WORKOUTS_URL,
+            WORKOUT_URL,
+            f"{WORKOUT_URL}/performance_graph",
+            ME_URL,
+            f"{API_BASE}/api/user/{USER_ID}/settings",
+        }
+    )
+
+
+async def test_profile_refreshed_hourly(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The profile, settings and cached workout are refreshed every hour."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.mock_calls.clear()
+
+    await advance(hass, freezer, PROFILE_REFRESH_INTERVAL)
+
+    assert ME_URL in gets(mock_api)
+    assert WORKOUT_URL in gets(mock_api)
+
+
+@pytest.mark.parametrize("workouts_json", [load_fixture("api/workouts_empty.json")])
+async def test_no_workouts_sets_up(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+) -> None:
+    """An account without workouts sets up normally."""
+    await setup_integration(hass, mock_config_entry)
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert WORKOUT_URL not in gets(mock_api)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"exc": ClientError()},
+        {"status": 503, "text": "unavailable", "headers": TEXT},
+        {"status": 429, "text": "slow down", "headers": TEXT},
+    ],
+    ids=["network", "server_error", "rate_limited"],
+)
+async def test_connection_error_at_setup_retries(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    kwargs: dict[str, Any],
+) -> None:
+    """Network trouble at startup leaves the entry retrying, not failed."""
+    aioclient_mock.get(ME_URL, **kwargs)
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert grants(aioclient_mock) == []
+    # Home Assistant 2026.3 does not pass the translation key of a failed first
+    # refresh on to the entry; later releases do.
+    if mock_config_entry.error_reason_translation_key is not None:
+        assert mock_config_entry.error_reason_translation_key == "update_failed"
+        assert mock_config_entry.reason.startswith("Error fetching data from Peloton: ")
+
+
+async def test_rejected_refresh_token_starts_one_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A revoked refresh token starts one reauth flow and stops polling."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.clear_requests()
+    mock_api.get(
+        WORKOUTS_URL, status=401, json={"error_code": 3020}, headers=JSON_HEADERS
+    )
+    mock_api.post(
+        TOKEN_URL,
+        status=403,
+        json={"error": "invalid_grant"},
+        headers=JSON_HEADERS,
+    )
+
+    await advance(hass, freezer)
+    assert len(reauth_flows(hass)) == 1
+    requests_after_failure = len(mock_api.mock_calls)
+
+    for _ in range(5):
+        await advance(hass, freezer)
+
+    assert len(mock_api.mock_calls) == requests_after_failure
+    assert len(reauth_flows(hass)) == 1
+    assert "password" not in grants(mock_api)
+
+
+async def test_second_401_starts_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A token rejected again after a successful refresh starts reauth."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.clear_requests()
+    mock_api.get(
+        WORKOUTS_URL, status=401, json={"error_code": 3020}, headers=JSON_HEADERS
+    )
+    mock_api.post(TOKEN_URL, json=token_response(now=time.time()), headers=JSON_HEADERS)
+
+    await advance(hass, freezer)
+
+    assert len(reauth_flows(hass)) == 1
+    assert grants(mock_api) == ["refresh_token"]
+
+
+async def test_unusable_stored_tokens_start_reauth(
+    hass: HomeAssistant, mock_api: AiohttpClientMocker
+) -> None:
+    """Corrupt stored tokens lead to reauth instead of a crash."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id=USER_ID,
+        data={CONF_USERNAME: USERNAME, CONF_TOKEN: {"refresh_token": "x"}},
+    )
+
+    await setup_integration(hass, entry)
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert len(reauth_flows(hass)) == 1
+    assert grants(mock_api) == []
+
+
+async def test_migrate_v2_entry(
+    hass: HomeAssistant,
+    mock_config_entry_v2: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+) -> None:
+    """An old entry logs in once, then stores tokens instead of the password."""
+    await setup_integration(hass, mock_config_entry_v2)
+
+    entry = mock_config_entry_v2
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.version == 3
+    assert entry.unique_id == USER_ID
+    assert set(entry.data) == {CONF_USERNAME, CONF_TOKEN}
+    assert entry.data[CONF_TOKEN]["refresh_token"] == "refresh-1"
+    assert PASSWORD not in str(entry.data)
+    assert grants(mock_api) == ["password"]
+
+    # Later setups use the tokens.
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert grants(mock_api) == ["password"]
+
+
+async def test_migrate_v2_keeps_unique_id_if_taken(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_config_entry_v2: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+) -> None:
+    """If another entry already uses the user id, the old unique_id stays."""
+    mock_config_entry.add_to_hass(hass)
+
+    await setup_integration(hass, mock_config_entry_v2)
+
+    assert mock_config_entry_v2.unique_id == USERNAME
+    assert CONF_PASSWORD not in mock_config_entry_v2.data
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "state", "reason"),
+    [
+        (
+            {"exc": ClientError()},
+            ConfigEntryState.SETUP_RETRY,
+            ("cannot_connect", "Could not reach Peloton: "),
+        ),
+        (
+            {
+                "status": 429,
+                "json": {"error": "too_many_attempts"},
+                "headers": JSON_HEADERS,
+            },
+            ConfigEntryState.SETUP_RETRY,
+            ("rate_limited", "Peloton is limiting login attempts"),
+        ),
+        (
+            {
+                "status": 401,
+                "json": {"error": "invalid_client"},
+                "headers": JSON_HEADERS,
+            },
+            ConfigEntryState.SETUP_RETRY,
+            ("cannot_connect", "Could not reach Peloton: "),
+        ),
+        (
+            {
+                "status": 403,
+                "json": {"error": "invalid_grant"},
+                "headers": JSON_HEADERS,
+            },
+            ConfigEntryState.SETUP_ERROR,
+            ("auth_failed", "The stored Peloton login is no longer valid"),
+        ),
+    ],
+    ids=["network", "rate_limited", "client_rejected", "wrong_password"],
+)
+async def test_migrate_v2_login_errors(
+    hass: HomeAssistant,
+    mock_config_entry_v2: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    kwargs: dict[str, Any],
+    state: ConfigEntryState,
+    reason: tuple[str, str],
+) -> None:
+    """Migration errors retry later, or start reauth for a rejected password."""
+    aioclient_mock.post(TOKEN_URL, **kwargs)
+
+    await setup_integration(hass, mock_config_entry_v2)
+
+    assert mock_config_entry_v2.state is state
+    expect_reauth = state is ConfigEntryState.SETUP_ERROR
+    assert len(reauth_flows(hass)) == int(expect_reauth)
+    # A rejected password is deleted at once; others are kept for the retry.
+    assert (CONF_PASSWORD in mock_config_entry_v2.data) is not expect_reauth
+    if not expect_reauth:
+        assert mock_config_entry_v2.error_reason_translation_key == reason[0]
+        assert mock_config_entry_v2.reason.startswith(reason[1])
+        assert "{" not in mock_config_entry_v2.reason
+
+
+async def test_rejected_migration_password_is_not_sent_again(
+    hass: HomeAssistant,
+    mock_config_entry_v2: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """After a rejected migration login, reloads send no password grant."""
+    aioclient_mock.post(
+        TOKEN_URL, status=403, json={"error": "invalid_grant"}, headers=JSON_HEADERS
+    )
+    await setup_integration(hass, mock_config_entry_v2)
+    assert grants(aioclient_mock) == ["password"]
+
+    await hass.config_entries.async_reload(mock_config_entry_v2.entry_id)
+    await hass.async_block_till_done()
+
+    assert grants(aioclient_mock) == ["password"]
+    assert mock_config_entry_v2.state is ConfigEntryState.SETUP_ERROR
+
+
+@pytest.mark.parametrize("token_json", [token_response(now=time.time(), user_id=None)])
+async def test_migrate_v2_user_id_from_profile(
+    hass: HomeAssistant,
+    mock_config_entry_v2: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+) -> None:
+    """Migration reads the user id from /api/me if the token lacks it."""
+    await setup_integration(hass, mock_config_entry_v2)
+
+    assert mock_config_entry_v2.unique_id == USER_ID
+    assert mock_config_entry_v2.data[CONF_TOKEN]["user_id"] == USER_ID
+
+
+async def test_migrate_v2_without_password_starts_reauth(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """An old entry without a password cannot migrate silently."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, version=2, unique_id=USERNAME, data={CONF_USERNAME: USERNAME}
+    )
+
+    await setup_integration(hass, entry)
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert len(reauth_flows(hass)) == 1
+    assert aioclient_mock.call_count == 0
+
+
+async def test_migrate_v1_entry(
+    hass: HomeAssistant, mock_api: AiohttpClientMocker
+) -> None:
+    """Version 1 entries go through version 2 to 3."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_USERNAME: USERNAME, CONF_PASSWORD: PASSWORD},
+    )
+
+    await setup_integration(hass, entry)
+
+    assert entry.version == 3
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == USER_ID
+
+
+async def test_downgrade_is_refused(hass: HomeAssistant) -> None:
+    """Entries from a newer version of the integration are not loaded."""
+    entry = MockConfigEntry(domain=DOMAIN, version=4, data={})
+
+    await setup_integration(hass, entry)
+
+    assert entry.state is ConfigEntryState.MIGRATION_ERROR
+
+
+async def test_remove_entry_revokes_refresh_token(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+) -> None:
+    """Deleting the entry revokes its refresh token."""
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.config_entries.async_remove(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    revokes = [c for c in mock_api.mock_calls if str(c[1]) == REVOKE_URL]
+    assert len(revokes) == 1
+    assert revokes[0][2]["token"] == "stored-refresh"
+
+
+async def test_remove_entry_ignores_revoke_errors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failed revoke does not stop the entry from being removed."""
+    await setup_integration(hass, mock_config_entry)
+    aioclient_mock.clear_requests()
+    aioclient_mock.post(REVOKE_URL, exc=ClientError())
+
+    await hass.config_entries.async_remove(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_get_entry(mock_config_entry.entry_id) is None
+    assert aioclient_mock.call_count == 1
+    assert "Error calling entry remove callback" not in caplog.text
+
+
+async def test_remove_entry_without_tokens(
+    hass: HomeAssistant,
+    mock_config_entry_v2: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Removing an entry that never got tokens sends nothing."""
+    mock_config_entry_v2.add_to_hass(hass)
+
+    await hass.config_entries.async_remove(mock_config_entry_v2.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_get_entry(mock_config_entry_v2.entry_id) is None
+    assert aioclient_mock.call_count == 0
+    assert "Error calling entry remove callback" not in caplog.text
+
+
+async def test_scan_interval() -> None:
+    """Polling stays at 10 seconds until adaptive polling (phase 3)."""
+    assert timedelta(seconds=10) == SCAN_INTERVAL
+
+
+async def test_rejected_token_at_setup_starts_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Stored tokens that Peloton rejects at startup lead to reauth."""
+    aioclient_mock.get(
+        ME_URL, status=401, json={"error_code": 3020}, headers=JSON_HEADERS
+    )
+    aioclient_mock.post(
+        TOKEN_URL, status=403, json={"error": "invalid_grant"}, headers=JSON_HEADERS
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
     assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
-    assert not hass.config_entries.flow.async_progress()
+    assert len(reauth_flows(hass)) == 1
+    assert "password" not in grants(aioclient_mock)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"exc": ClientError()},
+        {"status": 503, "text": "unavailable", "headers": TEXT},
+        {"status": 429, "text": "slow down", "headers": TEXT},
+    ],
+    ids=["network", "server_error", "rate_limited"],
+)
+async def test_transient_poll_error_keeps_polling(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+    kwargs: dict[str, Any],
+) -> None:
+    """A temporary failure while polling neither starts reauth nor stops polling."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.clear_requests()
+    mock_api.get(WORKOUTS_URL, **kwargs)
+
+    await advance(hass, freezer)
+    assert mock_config_entry.runtime_data.last_update_success is False
+    calls = len(mock_api.mock_calls)
+
+    await advance(hass, freezer)
+    assert len(mock_api.mock_calls) > calls
+    assert reauth_flows(hass) == []
+    assert grants(mock_api) == []
+
+
+def _register(mock: AiohttpClientMocker, workouts: Any, workout: Any) -> None:
+    """Register the API endpoints with the given workout list and detail."""
+    mock.get(WORKOUTS_URL, json=workouts, headers=JSON_HEADERS)
+    mock.get(ME_URL, json=load_fixture("me.json"), headers=JSON_HEADERS)
+    mock.get(
+        f"{API_BASE}/api/user/{USER_ID}/settings",
+        json=load_fixture("settings.json"),
+        headers=JSON_HEADERS,
+    )
+    mock.get(
+        f"{WORKOUT_URL}/performance_graph",
+        json=load_fixture("performance_graph.json"),
+        headers=JSON_HEADERS,
+    )
+    mock.get(WORKOUT_URL, json=workout, headers=JSON_HEADERS)
+
+
+def _running() -> tuple[dict[str, Any], dict[str, Any]]:
+    workouts = load_fixture("api/workouts.json")
+    workouts["data"][0] |= {"status": "IN_PROGRESS", "end_time": None}
+    workout = load_fixture("api/workout.json") | {
+        "status": "IN_PROGRESS",
+        "end_time": None,
+    }
+    return workouts, workout
+
+
+async def test_workout_completion_refetches_once(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """IN_PROGRESS to COMPLETE refetches details and profile once, then idles."""
+    _register(aioclient_mock, *_running())
+    await setup_integration(hass, mock_config_entry)
+    assert mock_config_entry.runtime_data.data.workout.is_in_progress
+
+    aioclient_mock.clear_requests()
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts.json"),
+        load_fixture("api/workout.json"),
+    )
+    await advance(hass, freezer)
+
+    assert not mock_config_entry.runtime_data.data.workout.is_in_progress
+    assert gets(aioclient_mock) == [
+        WORKOUTS_URL,
+        WORKOUT_URL,
+        f"{WORKOUT_URL}/performance_graph",
+        ME_URL,
+        f"{API_BASE}/api/user/{USER_ID}/settings",
+    ]
+
+    aioclient_mock.mock_calls.clear()
+    await advance(hass, freezer)
+    assert gets(aioclient_mock) == [WORKOUTS_URL]
+
+
+async def test_completion_seen_when_list_and_detail_disagree(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A workout that ends between the list and detail reads is still seen as ended."""
+    running_list, _ = _running()
+    # The list still says running; the detail fetched right after says complete.
+    _register(aioclient_mock, running_list, load_fixture("api/workout.json"))
+    await setup_integration(hass, mock_config_entry)
+
+    aioclient_mock.clear_requests()
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts.json"),
+        load_fixture("api/workout.json"),
+    )
+    await advance(hass, freezer)
+
+    assert ME_URL in gets(aioclient_mock)
+    assert WORKOUT_URL in gets(aioclient_mock)
+
+
+async def test_latest_workout_disappears(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """If the only workout is deleted, the profile is refreshed once."""
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts.json"),
+        load_fixture("api/workout.json"),
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    aioclient_mock.clear_requests()
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts_empty.json"),
+        load_fixture("api/workout.json"),
+    )
+    await advance(hass, freezer)
+
+    assert mock_config_entry.runtime_data.data.workout is None
+    assert gets(aioclient_mock) == [
+        WORKOUTS_URL,
+        ME_URL,
+        f"{API_BASE}/api/user/{USER_ID}/settings",
+    ]
+
+    aioclient_mock.mock_calls.clear()
+    await advance(hass, freezer)
+    assert gets(aioclient_mock) == [WORKOUTS_URL]

@@ -2,28 +2,65 @@
   "config": {
     "step": {
       "user": {
-        "description": "Log in to your Peloton account.",
+        "description": "Log in with your Peloton username or email and password. The password is used once to get access tokens and is not stored.",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "username": "The username or email address you use to log in to Peloton.",
+          "password": "Your Peloton password."
         }
       },
       "reauth_confirm": {
-        "description": "Reauthenticate with your Peloton account credentials.",
+        "title": "[%key:common::config_flow::title::reauth%]",
+        "description": "Peloton no longer accepts the stored login for {username}. Enter the password to log in again.",
+        "data": {
+          "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "password": "Your Peloton password."
+        }
+      },
+      "reconfigure": {
+        "description": "Log in again, for example after changing your Peloton password. The account must stay the same.",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "username": "The username or email address you use to log in to Peloton.",
+          "password": "Your Peloton password."
         }
       }
     },
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "mfa_required": "This account requires multi-factor authentication, which the integration does not support.",
+      "rate_limited": "Peloton is limiting login attempts. Wait a few minutes before trying again.",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_account%]",
-      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+      "already_in_progress": "[%key:common::config_flow::abort::already_in_progress%]",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+      "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]",
+      "wrong_account": "That login belongs to a different Peloton account. Use the account this entry was set up with."
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "The stored Peloton login is no longer valid. Reauthenticate the integration."
+    },
+    "cannot_connect": {
+      "message": "Could not reach Peloton: {error}"
+    },
+    "rate_limited": {
+      "message": "Peloton is limiting login attempts; setup will be retried."
+    },
+    "update_failed": {
+      "message": "Error fetching data from Peloton: {error}"
     }
   }
 }

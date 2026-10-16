@@ -1,29 +1,66 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Peloton account is already configured",
-            "reauth_successful": "Re-authentication was successful"
+  "config": {
+    "step": {
+      "user": {
+        "description": "Log in with your Peloton username or email and password. The password is used once to get access tokens and is not stored.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
         },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "user": {
-                "description": "Log in to your Peloton account.",
-                "data": {
-                    "username": "Username",
-                    "password": "Password"
-                }
-            },
-            "reauth_confirm": {
-                "description": "Reauthenticate with your Peloton account credentials.",
-                "data": {
-                    "username": "Username",
-                    "password": "Password"
-                }
-            }
+        "data_description": {
+          "username": "The username or email address you use to log in to Peloton.",
+          "password": "Your Peloton password."
         }
+      },
+      "reauth_confirm": {
+        "title": "Authentication expired for {name}",
+        "description": "Peloton no longer accepts the stored login for {username}. Enter the password to log in again.",
+        "data": {
+          "password": "Password"
+        },
+        "data_description": {
+          "password": "Your Peloton password."
+        }
+      },
+      "reconfigure": {
+        "description": "Log in again, for example after changing your Peloton password. The account must stay the same.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "The username or email address you use to log in to Peloton.",
+          "password": "Your Peloton password."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "mfa_required": "This account requires multi-factor authentication, which the integration does not support.",
+      "rate_limited": "Peloton is limiting login attempts. Wait a few minutes before trying again.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "already_in_progress": "This is already being configured. Finish the existing configuration before starting again.",
+      "reauth_successful": "Re-authentication was successful",
+      "reconfigure_successful": "Reconfiguration was successful",
+      "wrong_account": "That login belongs to a different Peloton account. Use the account this entry was set up with."
     }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "The stored Peloton login is no longer valid. Reauthenticate the integration."
+    },
+    "cannot_connect": {
+      "message": "Could not reach Peloton: {error}"
+    },
+    "rate_limited": {
+      "message": "Peloton is limiting login attempts; setup will be retried."
+    },
+    "update_failed": {
+      "message": "Error fetching data from Peloton: {error}"
+    }
+  }
 }

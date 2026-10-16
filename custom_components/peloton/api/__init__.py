@@ -5,7 +5,7 @@ used outside Home Assistant (see scripts/api_debug.py).
 """
 
 from .auth import PelotonTokens, async_login, async_refresh, async_revoke
-from .client import PelotonClient
+from .client import PelotonClient, async_login_and_identify
 from .exceptions import (
     PelotonAuthError,
     PelotonConnectionError,
@@ -39,6 +39,7 @@ __all__ = [
     "UserSettings",
     "Workout",
     "async_login",
+    "async_login_and_identify",
     "async_refresh",
     "async_revoke",
 ]

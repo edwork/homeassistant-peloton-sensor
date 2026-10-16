@@ -1,11 +1,13 @@
 {
   "domain": "peloton",
   "name": "Peloton",
-  "codeowners": ["@edwork"],
+  "codeowners": [
+    "@edwork"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/edwork/homeassistant-peloton-sensor",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/edwork/homeassistant-peloton-sensor/issues",
-  "requirements": ["pylotoncycle==0.9.1"],
+  "requirements": [],
   "version": "0.12"
 }

@@ -12,7 +12,7 @@ from yarl import URL
 
 from custom_components.peloton.api.const import API_BASE, TOKEN_URL, USER_ID_CLAIM
 
-from .conftest import USER_ID
+USER_ID = "0123456789abcdef0123456789abcdef"
 
 JSON = {"content-type": "application/json; charset=utf-8"}
 HTML = {"content-type": "text/html; charset=utf-8"}

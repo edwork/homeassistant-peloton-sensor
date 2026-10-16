@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 import logging
 import time
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 import aiohttp
 
 from ._http import raise_for_transient, read_body
-from .auth import PelotonTokens, async_refresh, async_revoke
+from .auth import PelotonTokens, async_login, async_refresh, async_revoke
 from .const import API_BASE, REFRESH_RETRY_DELAY, REQUEST_TIMEOUT
 from .exceptions import (
     PelotonAuthError,
@@ -24,6 +25,24 @@ _LOGGER = logging.getLogger(__name__)
 # Joins that embed the class and instructor in a workout, so the instructor
 # endpoint (which fails for workouts without a class) is never needed.
 _WORKOUT_JOINS = "ride,ride.instructor"
+
+
+async def async_login_and_identify(
+    session: aiohttp.ClientSession, username: str, password: str
+) -> PelotonTokens:
+    """Log in and return tokens that carry the Peloton user id.
+
+    The id normally comes from the access token; if it is missing there, it is
+    read from /api/me. Raises PelotonError when neither has it.
+    """
+    tokens = await async_login(session, username, password)
+    if tokens.user_id is not None:
+        return tokens
+    client = PelotonClient(session, tokens)
+    await client.async_get_me()
+    if client.user_id is None:
+        raise PelotonError("Peloton did not return a user id")
+    return replace(tokens, user_id=client.user_id)
 
 
 class PelotonClient:
@@ -58,6 +77,11 @@ class PelotonClient:
     def tokens(self) -> PelotonTokens:
         """Return the current tokens."""
         return self._tokens
+
+    @property
+    def user_id(self) -> str | None:
+        """Return the user id, once known from the token or /api/me."""
+        return self._user_id
 
     async def async_get_me(self) -> PelotonUser:
         """Return the logged-in user."""

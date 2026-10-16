@@ -26,8 +26,7 @@ jobs:
           # pytest-homeassistant-custom-component release.
           - ha: latest
             requirements: requirements_test.txt
-          # Oldest HA tested: the proposed minimum (2026.3.1). hacs.json still
-          # declares 2024.6.0b0 until roadmap phase 4 raises it.
+          # Oldest supported HA, declared in hacs.json (2026.3.1).
           - ha: minimum
             requirements: requirements_test_min.txt
     steps:
