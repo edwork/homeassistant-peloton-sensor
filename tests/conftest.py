@@ -112,6 +112,12 @@ def token_json() -> dict[str, Any]:
 
 
 @pytest.fixture
+def me_json() -> dict[str, Any]:
+    """Return changes to apply to the /api/me response."""
+    return {}
+
+
+@pytest.fixture
 def settings_json() -> dict[str, Any]:
     """Return the user settings response (imperial units)."""
     return load_fixture("settings.json")
@@ -121,6 +127,7 @@ def settings_json() -> dict[str, Any]:
 def mock_api(
     aioclient_mock: AiohttpClientMocker,
     token_json: dict[str, Any],
+    me_json: dict[str, Any],
     settings_json: dict[str, Any],
     workouts_json: dict[str, Any],
     workout_json: dict[str, Any],
@@ -129,7 +136,9 @@ def mock_api(
     aioclient_mock.post(TOKEN_URL, json=token_json, headers=JSON_HEADERS)
     aioclient_mock.post(REVOKE_URL, text="", headers=JSON_HEADERS)
     aioclient_mock.get(
-        f"{API_BASE}/api/me", json=load_fixture("me.json"), headers=JSON_HEADERS
+        f"{API_BASE}/api/me",
+        json=load_fixture("me.json") | me_json,
+        headers=JSON_HEADERS,
     )
     aioclient_mock.get(
         f"{API_BASE}/api/user/{USER_ID}/settings",

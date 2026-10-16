@@ -189,3 +189,14 @@ def test_performance_graph_tolerates_bad_data() -> None:
     assert graph.metrics["output"].last is None
     assert graph.metrics["output"].maximum is None
     assert PerformanceGraph.from_api(None) == PerformanceGraph(duration=None)
+
+
+def test_non_finite_numbers_are_ignored() -> None:
+    """NaN and Infinity (which json.loads accepts) are not usable values."""
+    workout = Workout.from_api(
+        {"start_time": float("nan"), "total_work": float("inf"), "ftp_info": {"ftp": 5}}
+    )
+
+    assert workout.start_time is None
+    assert workout.total_work is None
+    assert workout.ftp == 5

@@ -44,6 +44,12 @@
       "display_unit": "kcal",
       "value": 450,
       "slug": "calories"
+    },
+    {
+      "display_name": "Active Calories",
+      "display_unit": "kcal",
+      "value": 380,
+      "slug": "active_calories"
     }
   ],
   "metrics": [

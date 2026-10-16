@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 import json
+import math
 from typing import Any
 
 import aiohttp
@@ -28,11 +29,12 @@ async def read_body(resp: aiohttp.ClientResponse) -> tuple[Any, str]:
 
 
 def retry_after(headers: Mapping[str, str]) -> float | None:
-    """Return the Retry-After header in seconds, if it is a number."""
+    """Return the Retry-After header in seconds, if it is a positive number."""
     try:
-        return float(headers["Retry-After"])
+        value = float(headers["Retry-After"])
     except KeyError, ValueError:
         return None
+    return value if math.isfinite(value) and value > 0 else None
 
 
 def raise_for_transient(

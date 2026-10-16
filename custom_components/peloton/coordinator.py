@@ -1,6 +1,7 @@
 """Data update coordinator for Peloton."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime, timedelta, tzinfo
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -13,25 +14,35 @@ from .api import (
     PelotonAuthError,
     PelotonClient,
     PelotonError,
+    PelotonRateLimitError,
     PelotonUser,
     PerformanceGraph,
     UserSettings,
     Workout,
 )
 from .const import (
+    CONF_ACTIVE_INTERVAL,
+    CONF_IDLE_INTERVAL,
+    CONF_MAX_WORKOUT_MINUTES,
+    DEFAULT_ACTIVE_INTERVAL,
+    DEFAULT_IDLE_INTERVAL,
+    DEFAULT_MAX_WORKOUT_MINUTES,
     DOMAIN,
+    MAX_RETRY_AFTER,
     PERFORMANCE_GRAPH_EVERY_N,
     PROFILE_REFRESH_INTERVAL,
-    SCAN_INTERVAL,
+    RATE_LIMIT_BACKOFF,
+    RATE_LIMIT_MAX_BACKOFF,
+    TOLERATED_FAILED_POLLS,
+    WORKOUT_GRACE,
 )
-from .stats import PelotonStat, async_build_stats
 
 _LOGGER = logging.getLogger(__name__)
 
 type PelotonConfigEntry = ConfigEntry[PelotonCoordinator]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class PelotonData:
     """Everything the entities show."""
 
@@ -40,17 +51,57 @@ class PelotonData:
     # Latest workout with all fields, or None when the account has none.
     workout: Workout | None
     performance_graph: PerformanceGraph | None
-    stats: list[PelotonStat] = field(default_factory=list)
+    # Time zone of the latest workout (UTC if missing or unknown).
+    timezone: tzinfo
+    # True while the latest workout is in progress and not abandoned.
+    active: bool
+
+
+def workout_active(workout: Workout | None, now: datetime, max_minutes: float) -> bool:
+    """Return True if the workout is in progress and not abandoned.
+
+    A class workout counts as abandoned once its class length plus
+    WORKOUT_GRACE has passed since it started. Workouts without a class length
+    (Just Ride, free runs) count as abandoned after ``max_minutes``.
+    """
+    if workout is None or not workout.is_in_progress:
+        return False
+    # Fall back to the creation time; without either there is nothing to
+    # measure against.
+    start = workout.start_time if workout.start_time is not None else workout.created_at
+    if start is None:
+        return True
+    ride = workout.ride
+    if ride is not None and ride.is_class and ride.duration:
+        limit = timedelta(seconds=ride.duration) + WORKOUT_GRACE
+    else:
+        limit = timedelta(minutes=max_minutes)
+    return now.timestamp() < start + limit.total_seconds()
+
+
+async def async_resolve_timezone(name: str | None) -> tzinfo:
+    """Return the workout's time zone, or UTC if it is missing or unknown."""
+    if name:
+        try:
+            zone = await dt_util.async_get_time_zone(name)
+        except ValueError, OSError:
+            # zoneinfo rejects keys that are not normalized relative paths, and
+            # the file system rejects overlong ones.
+            zone = None
+        if zone is not None:
+            return zone
+    return dt_util.UTC
 
 
 class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
     """Poll Peloton for the latest workout.
 
-    Each poll lists the latest workout (one request). The workout's details
-    and performance graph are fetched again only while it is in progress, when
-    a different workout appears, or when its status changes; otherwise the
-    previous ones are reused. The profile and settings are refreshed hourly
-    and whenever the latest workout changes.
+    Between workouts each poll is one request (the latest workout from the
+    workout list), every ``idle_interval`` seconds. While a workout is in
+    progress, its details and performance graph are fetched every
+    ``active_interval`` seconds. Details are also fetched once when the latest
+    workout changes and hourly. The profile and settings are refreshed hourly
+    and when the latest workout changes.
     """
 
     config_entry: PelotonConfigEntry
@@ -64,9 +115,15 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=SCAN_INTERVAL,
+            update_interval=timedelta(
+                seconds=entry.options.get(CONF_IDLE_INTERVAL, DEFAULT_IDLE_INTERVAL)
+            ),
         )
         self.client = client
+        # Failed polls in a row; entities stay available for a few of them.
+        self.failed_polls = 0
+        # Rate-limited polls in a row, for the backoff without Retry-After.
+        self._rate_limited_polls = 0
         self._user: PelotonUser | None = None
         self._settings: UserSettings | None = None
         self._profile_fetched_at = dt_util.utcnow()
@@ -78,20 +135,18 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
         """Return the Peloton user id of this account."""
         return self.client.user_id
 
+    @property
+    def _max_workout_minutes(self) -> float:
+        return self.config_entry.options.get(
+            CONF_MAX_WORKOUT_MINUTES, DEFAULT_MAX_WORKOUT_MINUTES
+        )
+
     async def _async_setup(self) -> None:
         """Fetch the profile and settings once before the first update."""
         try:
             await self._async_refresh_profile()
-        except PelotonAuthError as err:
-            raise ConfigEntryAuthFailed(
-                translation_domain=DOMAIN, translation_key="auth_failed"
-            ) from err
         except PelotonError as err:
-            raise UpdateFailed(
-                translation_domain=DOMAIN,
-                translation_key="update_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
+            raise self._translate(err) from err
 
     async def _async_refresh_profile(self) -> None:
         self._user = await self.client.async_get_me()
@@ -99,26 +154,84 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
         self._profile_fetched_at = dt_util.utcnow()
 
     async def _async_update_data(self) -> PelotonData:
-        """Fetch the latest workout, reusing unchanged details."""
+        """Fetch the latest workout and pick the next polling interval."""
         try:
-            return await self._async_fetch()
-        except PelotonAuthError as err:
-            raise ConfigEntryAuthFailed(
+            data = await self._async_fetch()
+        except Exception as err:
+            delay = self._retry_delay(err)
+            self._count_failure(err, delay)
+            if isinstance(err, PelotonError):
+                raise self._translate(err, delay) from err
+            # Unexpected errors keep their traceback in Home Assistant's log.
+            raise
+        self.failed_polls = 0
+        self._rate_limited_polls = 0
+        options = self.config_entry.options
+        seconds = (
+            options.get(CONF_ACTIVE_INTERVAL, DEFAULT_ACTIVE_INTERVAL)
+            if data.active
+            else options.get(CONF_IDLE_INTERVAL, DEFAULT_IDLE_INTERVAL)
+        )
+        self.update_interval = timedelta(seconds=seconds)
+        return data
+
+    def _count_failure(self, err: Exception, delay: float | None) -> None:
+        """Count a failed poll; entities stay available for a few of them.
+
+        After an auth error polling stops, and after a long rate-limit wait the
+        next poll is far away, so in both cases entities go unavailable at once
+        instead of showing old data (such as a workout that has ended).
+        """
+        interval = self.update_interval.total_seconds() if self.update_interval else 0
+        if isinstance(err, PelotonAuthError) or (
+            delay is not None and delay > interval * TOLERATED_FAILED_POLLS
+        ):
+            self.failed_polls = max(self.failed_polls + 1, TOLERATED_FAILED_POLLS + 1)
+        else:
+            self.failed_polls += 1
+        if self.failed_polls == TOLERATED_FAILED_POLLS + 1:
+            # Home Assistant does not notify entities about a failure that
+            # follows another failure, so tell them their data is now too old
+            # to show.
+            self.async_update_listeners()
+
+    def _retry_delay(self, err: Exception) -> float | None:
+        """Return how long to wait before the next poll after a rate limit.
+
+        Peloton's Retry-After is used when present, never shorter than the
+        normal interval and never longer than MAX_RETRY_AFTER. Without one, the
+        wait starts at RATE_LIMIT_BACKOFF and doubles with each rate-limited
+        poll in a row. Call once per failed poll.
+        """
+        if not isinstance(err, PelotonRateLimitError):
+            return None
+        self._rate_limited_polls += 1
+        if err.retry_after is None:
+            return min(
+                RATE_LIMIT_BACKOFF * 2 ** (self._rate_limited_polls - 1),
+                RATE_LIMIT_MAX_BACKOFF,
+            )
+        interval = self.update_interval.total_seconds() if self.update_interval else 0
+        return min(max(err.retry_after, interval), MAX_RETRY_AFTER)
+
+    def _translate(self, err: PelotonError, delay: float | None = None) -> Exception:
+        """Map a client error to the exception Home Assistant expects."""
+        if isinstance(err, PelotonAuthError):
+            return ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="auth_failed"
-            ) from err
-        except PelotonError as err:
-            raise UpdateFailed(
-                translation_domain=DOMAIN,
-                translation_key="update_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
+            )
+        return UpdateFailed(
+            translation_domain=DOMAIN,
+            translation_key="update_failed",
+            translation_placeholders={"error": str(err)},
+            retry_after=delay,
+        )
 
     async def _async_fetch(self) -> PelotonData:
         previous = self.data
+        now = dt_util.utcnow()
         latest = await self.client.async_get_latest_workout()
-        profile_stale = (
-            dt_util.utcnow() - self._profile_fetched_at >= PROFILE_REFRESH_INTERVAL
-        )
+        profile_stale = now - self._profile_fetched_at >= PROFILE_REFRESH_INTERVAL
 
         workout = previous.workout if previous else None
         graph = previous.performance_graph if previous else None
@@ -133,7 +246,12 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
         changed = row != self._last_row
         if latest is None or latest.id is None:
             workout, graph = None, None
-        elif changed or latest.is_in_progress or graph is None or profile_stale:
+        elif (
+            changed
+            or graph is None
+            or profile_stale
+            or workout_active(latest, now, self._max_workout_minutes)
+        ):
             workout = await self.client.async_get_workout(latest.id)
             graph = await self.client.async_get_performance_graph(
                 latest.id, every_n=PERFORMANCE_GRAPH_EVERY_N
@@ -157,5 +275,8 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
             settings=settings,
             workout=workout,
             performance_graph=graph,
-            stats=await async_build_stats(user, settings, workout, graph),
+            timezone=await async_resolve_timezone(
+                workout.timezone if workout else None
+            ),
+            active=workout_active(workout, now, self._max_workout_minutes),
         )

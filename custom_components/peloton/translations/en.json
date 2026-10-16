@@ -62,5 +62,171 @@
     "update_failed": {
       "message": "Error fetching data from Peloton: {error}"
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "workout": {
+        "name": "Workout",
+        "state_attributes": {
+          "workout_type": {
+            "name": "Workout type"
+          },
+          "device_type": {
+            "name": "Device type"
+          },
+          "ride_title": {
+            "name": "Ride title"
+          },
+          "ride_description": {
+            "name": "Ride description"
+          },
+          "workout_image": {
+            "name": "Workout image"
+          },
+          "ftp": {
+            "name": "FTP"
+          },
+          "instructor": {
+            "name": "Instructor"
+          },
+          "paused": {
+            "name": "Paused"
+          }
+        }
+      }
+    },
+    "sensor": {
+      "start_time": {
+        "name": "Start time"
+      },
+      "end_time": {
+        "name": "End time"
+      },
+      "duration": {
+        "name": "Duration"
+      },
+      "leaderboard_rank": {
+        "name": "Leaderboard rank"
+      },
+      "leaderboard_total_users": {
+        "name": "Leaderboard total users"
+      },
+      "total_work": {
+        "name": "Total work"
+      },
+      "distance": {
+        "name": "Distance"
+      },
+      "total_calories": {
+        "name": "Total calories"
+      },
+      "active_calories": {
+        "name": "Active calories"
+      },
+      "total_output": {
+        "name": "Total output"
+      },
+      "heart_rate_average": {
+        "name": "Heart rate average"
+      },
+      "heart_rate_max": {
+        "name": "Heart rate max"
+      },
+      "heart_rate_current": {
+        "name": "Heart rate current"
+      },
+      "resistance_average": {
+        "name": "Resistance average"
+      },
+      "resistance_max": {
+        "name": "Resistance max"
+      },
+      "resistance_current": {
+        "name": "Resistance current"
+      },
+      "speed_average": {
+        "name": "Speed average"
+      },
+      "speed_max": {
+        "name": "Speed max"
+      },
+      "speed_current": {
+        "name": "Speed current"
+      },
+      "cadence_average": {
+        "name": "Cadence average"
+      },
+      "cadence_max": {
+        "name": "Cadence max"
+      },
+      "cadence_current": {
+        "name": "Cadence current"
+      },
+      "output_average": {
+        "name": "Output average"
+      },
+      "output_max": {
+        "name": "Output max"
+      },
+      "output_current": {
+        "name": "Output current"
+      },
+      "total_workouts": {
+        "name": "Total workouts"
+      },
+      "bike_bootcamp_count": {
+        "name": "Bike bootcamp count"
+      },
+      "rowing_count": {
+        "name": "Rowing count"
+      },
+      "row_bootcamp_count": {
+        "name": "Row bootcamp count"
+      },
+      "cardio_count": {
+        "name": "Cardio count"
+      },
+      "tread_bootcamp_count": {
+        "name": "Tread bootcamp count"
+      },
+      "cycling_count": {
+        "name": "Cycling count"
+      },
+      "meditation_count": {
+        "name": "Meditation count"
+      },
+      "running_count": {
+        "name": "Running count"
+      },
+      "strength_count": {
+        "name": "Strength count"
+      },
+      "stretching_count": {
+        "name": "Stretching count"
+      },
+      "walking_count": {
+        "name": "Walking count"
+      },
+      "yoga_count": {
+        "name": "Yoga count"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "description": "How often to check Peloton. Between workouts each check is one request; a shorter interval detects the start of a workout sooner.",
+        "data": {
+          "idle_interval": "Interval between workouts (seconds)",
+          "active_interval": "Interval during a workout (seconds)",
+          "max_workout_minutes": "Longest workout without a class length (minutes)"
+        },
+        "data_description": {
+          "idle_interval": "How long it can take to notice that a workout started.",
+          "active_interval": "How often live values such as cadence and heart rate update during a workout.",
+          "max_workout_minutes": "A workout without a class length (for example Just Ride) that is still marked in progress after this long is treated as ended. Class workouts end 15 minutes after the class length."
+        }
+      }
+    }
   }
 }

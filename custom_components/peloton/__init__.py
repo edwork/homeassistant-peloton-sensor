@@ -18,6 +18,7 @@ from .api import (
 )
 from .const import DOMAIN
 from .coordinator import PelotonConfigEntry, PelotonCoordinator
+from .migration import async_fix_total_output_statistics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +44,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: PelotonConfigEntry) -> b
     coordinator = PelotonCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    if coordinator.user_id is not None:
+        await async_fix_total_output_statistics(hass, coordinator.user_id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

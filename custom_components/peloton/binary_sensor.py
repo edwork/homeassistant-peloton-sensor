@@ -1,60 +1,56 @@
 """Binary sensor showing whether a Peloton workout is in progress."""
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
 from .coordinator import PelotonConfigEntry, PelotonCoordinator
+from .entity import PelotonEntity
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: PelotonConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the workout binary sensor."""
-    async_add_entities([PelotonLastWorkout(entry.runtime_data)], True)
+    async_add_entities([PelotonWorkoutBinarySensor(entry.runtime_data)])
 
 
-class PelotonLastWorkout(CoordinatorEntity[PelotonCoordinator], BinarySensorEntity):
-    """On while the latest workout is in progress."""
+class PelotonWorkoutBinarySensor(PelotonEntity, BinarySensorEntity):
+    """On while a workout is in progress (and not abandoned)."""
 
     _attr_device_class = BinarySensorDeviceClass.RUNNING
+    _attr_translation_key = "workout"
 
     def __init__(self, coordinator: PelotonCoordinator) -> None:
         """Initialize the binary sensor."""
-        super().__init__(coordinator)
-        user_id = coordinator.user_id
-        first_name = coordinator.data.user.first_name
-        self._attr_name = f"{first_name} on Peloton: Workout"
-        self._attr_unique_id = f"{user_id}_workout"
-        self._attr_extra_state_attributes = {}
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, user_id)},
-            "name": f"{first_name} on Peloton",
-            "manufacturer": "Peloton",
-        }
+        super().__init__(coordinator, "workout")
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Update the state from the latest workout."""
+    @property
+    def is_on(self) -> bool:
+        """Return True while the latest workout is in progress."""
+        return self.coordinator.data.active
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Describe the latest workout."""
         workout = self.coordinator.data.workout
-        self._attr_is_on = workout is not None and workout.is_in_progress
-        self._attr_icon = "mdi:bike-fast" if self._attr_is_on else "mdi:bike"
         ride = workout.ride if workout else None
-        self._attr_extra_state_attributes = {
-            "Workout Type": workout.fitness_discipline if workout else None,
-            "Device Type": workout.device_type if workout else None,
-            "Ride Title": ride.title if ride else None,
-            "Ride Description": ride.description if ride else None,
-            "Workout Image": ride.image_url if ride else None,
-            "FTP": workout.ftp if workout else None,
-            "Instructor": ride.instructor_name if ride else None,
-            "Paused": bool(workout and workout.is_paused),
+        return {
+            "workout_type": workout.fitness_discipline if workout else None,
+            "device_type": workout.device_type if workout else None,
+            "ride_title": ride.title if ride else None,
+            "ride_description": ride.description if ride else None,
+            "workout_image": ride.image_url if ride else None,
+            "ftp": workout.ftp if workout else None,
+            "instructor": ride.instructor_name if ride else None,
+            "paused": bool(workout and workout.is_paused),
         }
-        self.async_write_ha_state()

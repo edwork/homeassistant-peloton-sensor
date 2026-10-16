@@ -7,7 +7,12 @@ from typing import Any
 from aiohttp import ClientError
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
-from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
+from homeassistant.const import (
+    CONF_PASSWORD,
+    CONF_TOKEN,
+    CONF_USERNAME,
+    STATE_UNAVAILABLE,
+)
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -19,13 +24,9 @@ from custom_components.peloton.api.const import (
     REVOKE_URL,
     TOKEN_URL,
 )
-from custom_components.peloton.const import (
-    DOMAIN,
-    PROFILE_REFRESH_INTERVAL,
-    SCAN_INTERVAL,
-)
+from custom_components.peloton.const import DOMAIN, PROFILE_REFRESH_INTERVAL
 
-from .common import advance, setup_integration
+from .common import advance, setup_integration, state_of
 from .conftest import (
     JSON_HEADERS,
     PASSWORD,
@@ -171,6 +172,7 @@ async def test_polling_during_workout(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """While a workout is in progress, every poll fetches its details."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")  # 7 minutes into the class
     await setup_integration(hass, mock_config_entry)
     mock_api.mock_calls.clear()
 
@@ -304,6 +306,8 @@ async def test_rejected_refresh_token_starts_one_reauth(
 
     await advance(hass, freezer)
     assert len(reauth_flows(hass)) == 1
+    assert state_of(hass, "workout").state == STATE_UNAVAILABLE
+    assert state_of(hass, "heart_rate:_average").state == STATE_UNAVAILABLE
     requests_after_failure = len(mock_api.mock_calls)
 
     for _ in range(5):
@@ -578,11 +582,6 @@ async def test_remove_entry_without_tokens(
     assert "Error calling entry remove callback" not in caplog.text
 
 
-async def test_scan_interval() -> None:
-    """Polling stays at 10 seconds until adaptive polling (phase 3)."""
-    assert timedelta(seconds=10) == SCAN_INTERVAL
-
-
 async def test_rejected_token_at_setup_starts_reauth(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
@@ -628,7 +627,8 @@ async def test_transient_poll_error_keeps_polling(
     assert mock_config_entry.runtime_data.last_update_success is False
     calls = len(mock_api.mock_calls)
 
-    await advance(hass, freezer)
+    # A rate limit without Retry-After backs off for 60 s first.
+    await advance(hass, freezer, timedelta(seconds=61))
     assert len(mock_api.mock_calls) > calls
     assert reauth_flows(hass) == []
     assert grants(mock_api) == []
@@ -750,3 +750,203 @@ async def test_latest_workout_disappears(
     aioclient_mock.mock_calls.clear()
     await advance(hass, freezer)
     assert gets(aioclient_mock) == [WORKOUTS_URL]
+
+
+def _interval(entry: MockConfigEntry) -> timedelta:
+    return entry.runtime_data.update_interval
+
+
+async def test_adaptive_polling_interval(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Polls every 15 s between workouts and every 10 s during one."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts.json"),
+        load_fixture("api/workout.json"),
+    )
+    await setup_integration(hass, mock_config_entry)
+    assert _interval(mock_config_entry) == timedelta(seconds=15)
+
+    aioclient_mock.clear_requests()
+    _register(aioclient_mock, *_running())
+    await advance(hass, freezer)
+    assert _interval(mock_config_entry) == timedelta(seconds=10)
+
+    aioclient_mock.clear_requests()
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts.json"),
+        load_fixture("api/workout.json"),
+    )
+    await advance(hass, freezer, timedelta(seconds=10))
+    assert _interval(mock_config_entry) == timedelta(seconds=15)
+
+
+async def test_polling_intervals_from_options(
+    hass: HomeAssistant,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The idle interval comes from the options, from the first poll on."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id=USER_ID,
+        data={CONF_USERNAME: USERNAME, CONF_TOKEN: stored_tokens()},
+        options={"idle_interval": 45, "active_interval": 5},
+    )
+    await setup_integration(hass, entry)
+    assert _interval(entry) == timedelta(seconds=45)
+    mock_api.mock_calls.clear()
+
+    await advance(hass, freezer, timedelta(seconds=30))
+    assert gets(mock_api) == []
+    await advance(hass, freezer, timedelta(seconds=15))
+    assert gets(mock_api) == [WORKOUTS_URL]
+
+
+async def test_rate_limit_retry_after(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A rate-limited poll waits for Retry-After before polling again."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.clear_requests()
+    mock_api.get(
+        WORKOUTS_URL,
+        status=429,
+        text="slow down",
+        headers={**TEXT, "Retry-After": "120"},
+    )
+
+    await advance(hass, freezer)
+    assert len(mock_api.mock_calls) == 1
+
+    await advance(hass, freezer, timedelta(seconds=60))
+    assert len(mock_api.mock_calls) == 1
+
+    await advance(hass, freezer, timedelta(seconds=61))
+    assert len(mock_api.mock_calls) == 2
+
+
+@pytest.mark.parametrize(
+    ("workouts_json", "workout_json"),
+    [
+        (
+            load_fixture("api/workouts.json")
+            | {
+                "data": [
+                    load_fixture("api/workouts.json")["data"][0]
+                    | {"status": "IN_PROGRESS", "end_time": None}
+                ]
+            },
+            load_fixture("api/workout.json")
+            | {"status": "IN_PROGRESS", "end_time": None},
+        )
+    ],
+    ids=["abandoned"],
+)
+async def test_abandoned_workout_polls_like_idle(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A workout left in progress for days does not keep the fast, costly polling."""
+    freezer.move_to("2025-10-12 09:00:00+00:00")
+    await setup_integration(hass, mock_config_entry)
+    assert _interval(mock_config_entry) == timedelta(seconds=15)
+    mock_api.mock_calls.clear()
+
+    await advance(hass, freezer)
+
+    assert gets(mock_api) == [WORKOUTS_URL]
+
+
+@pytest.mark.parametrize(
+    ("retry_after", "first_poll_after"),
+    [("120", 120), ("1", 15), ("99999", 3600)],
+    ids=["honoured", "not_sooner_than_interval", "capped"],
+)
+async def test_retry_after_bounds(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+    retry_after: str,
+    first_poll_after: int,
+) -> None:
+    """Retry-After is used, but never below the interval or above an hour."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.clear_requests()
+    mock_api.get(
+        WORKOUTS_URL,
+        status=429,
+        text="slow down",
+        headers={**TEXT, "Retry-After": retry_after},
+    )
+    await advance(hass, freezer)
+    assert len(mock_api.mock_calls) == 1
+
+    await advance(hass, freezer, timedelta(seconds=first_poll_after - 2))
+    assert len(mock_api.mock_calls) == 1
+    await advance(hass, freezer, timedelta(seconds=4))
+    assert len(mock_api.mock_calls) == 2
+
+
+async def test_rate_limit_without_retry_after_backs_off(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Without Retry-After the wait starts at 60 s and doubles."""
+    await setup_integration(hass, mock_config_entry)
+    mock_api.clear_requests()
+    mock_api.get(WORKOUTS_URL, status=403, text="error code: 1015", headers=TEXT)
+    await advance(hass, freezer)
+    assert len(mock_api.mock_calls) == 1
+
+    await advance(hass, freezer, timedelta(seconds=58))
+    assert len(mock_api.mock_calls) == 1
+    await advance(hass, freezer, timedelta(seconds=4))
+    assert len(mock_api.mock_calls) == 2
+    await advance(hass, freezer, timedelta(seconds=110))
+    assert len(mock_api.mock_calls) == 2
+    await advance(hass, freezer, timedelta(seconds=12))
+    assert len(mock_api.mock_calls) == 3
+
+
+async def test_options_apply_without_reload(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Changed intervals apply from the next poll; the active one during workouts."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    _register(
+        aioclient_mock,
+        load_fixture("api/workouts.json"),
+        load_fixture("api/workout.json"),
+    )
+    await setup_integration(hass, mock_config_entry)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={"idle_interval": 40, "active_interval": 5, "max_workout_minutes": 240},
+    )
+
+    await advance(hass, freezer)
+    assert _interval(mock_config_entry) == timedelta(seconds=40)
+
+    aioclient_mock.clear_requests()
+    _register(aioclient_mock, *_running())
+    await advance(hass, freezer, timedelta(seconds=40))
+    assert _interval(mock_config_entry) == timedelta(seconds=5)

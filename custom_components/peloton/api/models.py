@@ -7,6 +7,7 @@ shapes without notice. Numbers accept int or float but never bool.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+import math
 from typing import Any, Self
 
 from .const import NO_CLASS_RIDE_ID
@@ -17,6 +18,9 @@ WORKOUT_IN_PROGRESS = "IN_PROGRESS"
 
 def _number(value: Any) -> int | float | None:
     if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    # json.loads accepts NaN and Infinity; they are not usable values.
+    if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
 

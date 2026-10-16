@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.peloton.const import DOMAIN, SCAN_INTERVAL
+from custom_components.peloton.const import DEFAULT_IDLE_INTERVAL, DOMAIN
 
 from .peloton_api import USER_ID
 
@@ -25,24 +25,12 @@ async def setup_integration(hass: HomeAssistant, entry: MockConfigEntry) -> None
 async def advance(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
-    delta: timedelta = SCAN_INTERVAL,
+    delta: timedelta = timedelta(seconds=DEFAULT_IDLE_INTERVAL),
 ) -> None:
-    """Move time forward (one update interval by default) and let polls run."""
+    """Move time forward (one idle interval by default) and let polls run."""
     freezer.tick(delta)
     async_fire_time_changed(hass)
     await hass.async_block_till_done(wait_background_tasks=True)
-
-
-async def refresh(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    """Run one coordinator refresh so every entity has received data.
-
-    Current behaviour: entities only read data in _handle_coordinator_update,
-    and the refresh at setup runs before they subscribe, so states stay
-    unknown until a later poll. Roadmap phase 3 sets state when entities are
-    added.
-    """
-    await entry.runtime_data.async_refresh()
-    await hass.async_block_till_done()
 
 
 def state_of(hass: HomeAssistant, suffix: str) -> State:

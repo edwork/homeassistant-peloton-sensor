@@ -1,0 +1,128 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "workout": {
+        "default": "mdi:bike",
+        "state": {
+          "on": "mdi:bike-fast"
+        }
+      }
+    },
+    "sensor": {
+      "start_time": {
+        "default": "mdi:timer-sand"
+      },
+      "end_time": {
+        "default": "mdi:timer-sand-complete"
+      },
+      "duration": {
+        "default": "mdi:timer-outline"
+      },
+      "leaderboard_rank": {
+        "default": "mdi:trophy-award"
+      },
+      "leaderboard_total_users": {
+        "default": "mdi:account-group"
+      },
+      "total_work": {
+        "default": "mdi:lightning-bolt-outline"
+      },
+      "distance": {
+        "default": "mdi:map-marker-distance"
+      },
+      "total_calories": {
+        "default": "mdi:fire"
+      },
+      "active_calories": {
+        "default": "mdi:fire"
+      },
+      "total_output": {
+        "default": "mdi:lightning-bolt"
+      },
+      "heart_rate_average": {
+        "default": "mdi:heart-pulse"
+      },
+      "heart_rate_max": {
+        "default": "mdi:heart-pulse"
+      },
+      "heart_rate_current": {
+        "default": "mdi:heart-pulse"
+      },
+      "resistance_average": {
+        "default": "mdi:network-strength-2"
+      },
+      "resistance_max": {
+        "default": "mdi:network-strength-4"
+      },
+      "resistance_current": {
+        "default": "mdi:network-strength-1"
+      },
+      "speed_average": {
+        "default": "mdi:speedometer-medium"
+      },
+      "speed_max": {
+        "default": "mdi:speedometer"
+      },
+      "speed_current": {
+        "default": "mdi:speedometer-slow"
+      },
+      "cadence_average": {
+        "default": "mdi:fan"
+      },
+      "cadence_max": {
+        "default": "mdi:fan-chevron-up"
+      },
+      "cadence_current": {
+        "default": "mdi:fan-clock"
+      },
+      "output_average": {
+        "default": "mdi:flash"
+      },
+      "output_max": {
+        "default": "mdi:flash-alert"
+      },
+      "output_current": {
+        "default": "mdi:flash-outline"
+      },
+      "total_workouts": {
+        "default": "mdi:counter"
+      },
+      "bike_bootcamp_count": {
+        "default": "mdi:bike"
+      },
+      "rowing_count": {
+        "default": "mdi:rowing"
+      },
+      "row_bootcamp_count": {
+        "default": "mdi:rowing"
+      },
+      "cardio_count": {
+        "default": "mdi:heart"
+      },
+      "tread_bootcamp_count": {
+        "default": "mdi:run-fast"
+      },
+      "cycling_count": {
+        "default": "mdi:bike"
+      },
+      "meditation_count": {
+        "default": "mdi:meditation"
+      },
+      "running_count": {
+        "default": "mdi:run-fast"
+      },
+      "strength_count": {
+        "default": "mdi:weight-lifter"
+      },
+      "stretching_count": {
+        "default": "mdi:gymnastics"
+      },
+      "walking_count": {
+        "default": "mdi:walk"
+      },
+      "yoga_count": {
+        "default": "mdi:yoga"
+      }
+    }
+  }
+}

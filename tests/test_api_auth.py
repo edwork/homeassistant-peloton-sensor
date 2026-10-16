@@ -354,3 +354,18 @@ async def test_undecodable_error_page_revoke(
 
     with pytest.raises(PelotonConnectionError):
         await async_revoke(session, "refresh-1")
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "Infinity", "soon"])
+async def test_unusable_retry_after_is_ignored(
+    session: ClientSession, aioclient_mock: AiohttpClientMocker, value: str
+) -> None:
+    """Retry-After values that are not positive finite numbers are ignored."""
+    aioclient_mock.post(
+        TOKEN_URL, status=429, text="slow down", headers={**TEXT, "Retry-After": value}
+    )
+
+    with pytest.raises(PelotonRateLimitError) as exc_info:
+        await async_login(session, USERNAME, PASSWORD)
+
+    assert exc_info.value.retry_after is None

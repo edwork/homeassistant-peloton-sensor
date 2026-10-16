@@ -4,11 +4,20 @@ from collections.abc import Mapping
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -26,7 +35,19 @@ from .api import (
     async_login_and_identify,
     async_revoke,
 )
-from .const import DOMAIN, INTEGRATION_NAME
+from .const import (
+    ACTIVE_INTERVAL_RANGE,
+    CONF_ACTIVE_INTERVAL,
+    CONF_IDLE_INTERVAL,
+    CONF_MAX_WORKOUT_MINUTES,
+    DEFAULT_ACTIVE_INTERVAL,
+    DEFAULT_IDLE_INTERVAL,
+    DEFAULT_MAX_WORKOUT_MINUTES,
+    DOMAIN,
+    IDLE_INTERVAL_RANGE,
+    INTEGRATION_NAME,
+    MAX_WORKOUT_MINUTES_RANGE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,10 +66,48 @@ CREDENTIALS_SCHEMA = vol.Schema(
 REAUTH_SCHEMA = vol.Schema({vol.Required(CONF_PASSWORD): PASSWORD_SELECTOR})
 
 
+def _whole_number(bounds: tuple[int, int], unit: str) -> vol.All:
+    """Return a validator for a whole number within bounds."""
+    return vol.All(
+        NumberSelector(
+            NumberSelectorConfig(
+                min=bounds[0],
+                max=bounds[1],
+                step=1,
+                mode=NumberSelectorMode.BOX,
+                unit_of_measurement=unit,
+            )
+        ),
+        vol.Coerce(int),
+    )
+
+
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_IDLE_INTERVAL): _whole_number(IDLE_INTERVAL_RANGE, "s"),
+        vol.Required(CONF_ACTIVE_INTERVAL): _whole_number(ACTIVE_INTERVAL_RANGE, "s"),
+        vol.Required(CONF_MAX_WORKOUT_MINUTES): _whole_number(
+            MAX_WORKOUT_MINUTES_RANGE, "min"
+        ),
+    }
+)
+DEFAULT_OPTIONS = {
+    CONF_IDLE_INTERVAL: DEFAULT_IDLE_INTERVAL,
+    CONF_ACTIVE_INTERVAL: DEFAULT_ACTIVE_INTERVAL,
+    CONF_MAX_WORKOUT_MINUTES: DEFAULT_MAX_WORKOUT_MINUTES,
+}
+
+
 class PelotonConfigFlow(ConfigFlow, domain=DOMAIN):
     """Log in to Peloton and store the resulting tokens (never the password)."""
 
     VERSION = 3
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> PelotonOptionsFlow:
+        """Return the options flow."""
+        return PelotonOptionsFlow()
 
     async def _async_login(
         self, username: str, password: str
@@ -208,6 +267,27 @@ class PelotonConfigFlow(ConfigFlow, domain=DOMAIN):
             entry,
             unique_id=tokens.user_id,
             data={CONF_USERNAME: username, CONF_TOKEN: tokens.as_dict()},
+        )
+
+
+class PelotonOptionsFlow(OptionsFlow):
+    """Polling intervals and the abandoned-workout limit.
+
+    The coordinator reads the options on every poll, so changes apply from
+    the next poll without a reload.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show and save the options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, DEFAULT_OPTIONS | dict(self.config_entry.options)
+            ),
         )
 
 

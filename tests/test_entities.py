@@ -1,28 +1,39 @@
-"""Entity tests: unique ids, states, units and attributes.
+"""Entity tests: unique ids, entity ids, states, units and attributes.
 
-The unique_id and device identifier assertions must keep passing through every
-roadmap phase. Tests and comments marked "current behaviour" document defects
-that phase 3 fixes; those assertions are expected to change with the fix.
+The unique_id and device identifier assertions must keep passing in every
+later change: existing installs keep their entity_ids, history and dashboards
+only while those stay the same.
 """
 
+from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import (
+    CONF_TOKEN,
+    CONF_USERNAME,
+    STATE_OFF,
+    STATE_ON,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    EntityCategory,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.peloton.api.const import API_BASE
-from custom_components.peloton.const import DOMAIN
+from custom_components.peloton.const import DOMAIN, TOLERATED_FAILED_POLLS
 
-from .common import advance, refresh, setup_integration, state_of
-from .conftest import JSON_HEADERS, USER_ID, load_fixture
+from .common import advance, setup_integration, state_of
+from .conftest import JSON_HEADERS, USER_ID, USERNAME, load_fixture, stored_tokens
 
-# unique_id suffix -> target entity_id for a fresh install, for a user whose
-# first name is "Test". Existing installs already have these entity_ids.
+# unique_id suffix (kept from earlier versions) -> entity_id on a fresh install,
+# for a user whose first name is "Test".
 EXPECTED_ENTITIES = {
     "workout": "binary_sensor.test_on_peloton_workout",
     "start_time": "sensor.test_on_peloton_start_time",
@@ -30,7 +41,8 @@ EXPECTED_ENTITIES = {
     "duration": "sensor.test_on_peloton_duration",
     "leaderboard:_rank": "sensor.test_on_peloton_leaderboard_rank",
     "leaderboard:_total_users": "sensor.test_on_peloton_leaderboard_total_users",
-    "power_output": "sensor.test_on_peloton_power_output",
+    # Called "Power Output" before; existing installs keep their entity_id.
+    "power_output": "sensor.test_on_peloton_total_work",
     "distance": "sensor.test_on_peloton_distance",
     "total_calories": "sensor.test_on_peloton_total_calories",
     "active_calories": "sensor.test_on_peloton_active_calories",
@@ -47,6 +59,10 @@ EXPECTED_ENTITIES = {
     "cadence:_average": "sensor.test_on_peloton_cadence_average",
     "cadence:_max": "sensor.test_on_peloton_cadence_max",
     "cadence:_current": "sensor.test_on_peloton_cadence_current",
+    "output:_average": "sensor.test_on_peloton_output_average",
+    "output:_max": "sensor.test_on_peloton_output_max",
+    "output:_current": "sensor.test_on_peloton_output_current",
+    "total_workouts": "sensor.test_on_peloton_total_workouts",
     "bike_bootcamp_count": "sensor.test_on_peloton_bike_bootcamp_count",
     "rowing_count": "sensor.test_on_peloton_rowing_count",
     "row_bootcamp_count": "sensor.test_on_peloton_row_bootcamp_count",
@@ -61,35 +77,50 @@ EXPECTED_ENTITIES = {
     "yoga_count": "sensor.test_on_peloton_yoga_count",
 }
 
+# unique_id suffixes of entities that existed before version 3 of the config
+# entry. These must never change.
+LEGACY_SUFFIXES = set(EXPECTED_ENTITIES) - {
+    "output:_average",
+    "output:_max",
+    "output:_current",
+    "total_workouts",
+}
+
 # Workout count sensors are registered but disabled by default.
 DISABLED_BY_DEFAULT = {key for key in EXPECTED_ENTITIES if key.endswith("_count")}
 
-# Binary sensor attribute keys. User templates depend on these names.
 BINARY_SENSOR_ATTRIBUTES = (
-    "Workout Type",
-    "Device Type",
-    "Ride Title",
-    "Ride Description",
-    "Workout Image",
-    "FTP",
-    "Instructor",
-    "Paused",
+    "workout_type",
+    "device_type",
+    "ride_title",
+    "ride_description",
+    "workout_image",
+    "ftp",
+    "instructor",
+    "paused",
 )
 
 
-def in_progress_list() -> dict[str, Any]:
+@pytest.fixture
+async def imperial(hass: HomeAssistant) -> None:
+    """Use US customary units in Home Assistant (no display conversion of miles)."""
+    hass.config.units = US_CUSTOMARY_SYSTEM
+
+
+def in_progress_list(**changes: Any) -> dict[str, Any]:
     """Return a workout list whose latest workout is running."""
     data = load_fixture("api/workouts.json")
-    data["data"][0] |= {"status": "IN_PROGRESS", "end_time": None}
+    data["data"][0] |= {"status": "IN_PROGRESS", "end_time": None} | changes
     return data
 
 
-def in_progress_detail() -> dict[str, Any]:
+def in_progress_detail(**changes: Any) -> dict[str, Any]:
     """Return the detail of a running workout."""
-    return load_fixture("api/workout.json") | {
-        "status": "IN_PROGRESS",
-        "end_time": None,
-    }
+    return (
+        load_fixture("api/workout.json")
+        | {"status": "IN_PROGRESS", "end_time": None}
+        | changes
+    )
 
 
 @pytest.mark.usefixtures("mock_api")
@@ -99,19 +130,15 @@ async def test_unique_ids_and_device(
     entity_registry: er.EntityRegistry,
     device_registry: dr.DeviceRegistry,
 ) -> None:
-    """Unique ids and the device identifier match existing installs.
-
-    Never change these: existing installs keep their entity_ids, history and
-    dashboards only while unique ids and the device identifier stay the same.
-    """
+    """Unique ids and the device identifier match existing installs."""
     await setup_integration(hass, mock_config_entry)
 
     entries = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert {entry.unique_id for entry in entries} == {
-        f"{USER_ID}_{suffix}" for suffix in EXPECTED_ENTITIES
-    }
+    suffixes = {entry.unique_id.removeprefix(f"{USER_ID}_") for entry in entries}
+    assert suffixes == set(EXPECTED_ENTITIES)
+    assert suffixes >= LEGACY_SUFFIXES
 
     disabled = {
         entry.unique_id.removeprefix(f"{USER_ID}_")
@@ -120,14 +147,17 @@ async def test_unique_ids_and_device(
     }
     assert disabled == DISABLED_BY_DEFAULT
 
-    # The device name depends on which platform registers the device first
-    # (see test_fresh_install_entity_ids), so only the identifier is pinned.
     devices = dr.async_entries_for_config_entry(
         device_registry, mock_config_entry.entry_id
     )
     assert len(devices) == 1
-    assert devices[0].identifiers == {(DOMAIN, USER_ID)}
-    assert {entry.device_id for entry in entries} == {devices[0].id}
+    device = devices[0]
+    assert device.identifiers == {(DOMAIN, USER_ID)}
+    assert device.name == "Test on Peloton"
+    assert device.manufacturer == "Peloton"
+    assert device.entry_type is dr.DeviceEntryType.SERVICE
+    assert device.configuration_url == "https://members.onepeloton.com"
+    assert {entry.device_id for entry in entries} == {device.id}
 
 
 @pytest.mark.usefixtures("mock_api")
@@ -136,17 +166,7 @@ async def test_fresh_install_entity_ids(
     mock_config_entry: MockConfigEntry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """Entity ids a fresh install gets.
-
-    Current behaviour: only the binary sensor gives the device a name; sensors
-    pass identifiers only. Platforms set up concurrently, so if the sensor
-    platform registers the device first, the device takes the entry title.
-    On Home Assistant 2026.4 and newer the registry then puts that name in
-    front of the sensor entity_ids ("peloton_testrider_..."); on 2026.3 it
-    does not. Which platform wins is a race. Roadmap phase 3 (full DeviceInfo
-    on every entity, has_entity_name) should make every entity match
-    EXPECTED_ENTITIES exactly.
-    """
+    """A fresh install gets predictable entity ids from the device and entity names."""
     await setup_integration(hass, mock_config_entry)
 
     entries = er.async_entries_for_config_entry(
@@ -156,68 +176,146 @@ async def test_fresh_install_entity_ids(
         entry.unique_id.removeprefix(f"{USER_ID}_"): entry.entity_id
         for entry in entries
     }
-    for suffix, target in EXPECTED_ENTITIES.items():
-        prefixed = target.replace("sensor.", "sensor.peloton_testrider_", 1)
-        assert actual[suffix] in (target, prefixed), suffix
+    assert actual == EXPECTED_ENTITIES
 
 
 @pytest.mark.usefixtures("mock_api")
+async def test_existing_entity_ids_are_kept(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Entities registered by earlier versions keep their entity_ids."""
+    mock_config_entry.add_to_hass(hass)
+    entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{USER_ID}_power_output",
+        config_entry=mock_config_entry,
+        suggested_object_id="ed_on_peloton_power_output",
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert (
+        entity_registry.async_get_entity_id("sensor", DOMAIN, f"{USER_ID}_power_output")
+        == "sensor.ed_on_peloton_power_output"
+    )
+    assert hass.states.get("sensor.ed_on_peloton_power_output").state == "100.0"
+
+
+@pytest.mark.parametrize("me_json", [{"first_name": None}], ids=["no_first_name"])
+async def test_device_name_falls_back_to_username(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """Accounts without a first name are named after the username."""
+    await setup_integration(hass, mock_config_entry)
+
+    (device,) = dr.async_entries_for_config_entry(
+        device_registry, mock_config_entry.entry_id
+    )
+    assert device.name == "testrider on Peloton"
+
+
+@pytest.mark.usefixtures("mock_api")
+async def test_states_are_set_when_added(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Entities have their values right after setup, without waiting for a poll."""
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "workout").state == STATE_OFF
+    assert state_of(hass, "heart_rate:_average").state == "140"
+
+
+@pytest.mark.usefixtures("mock_api", "imperial")
 async def test_completed_workout(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
-    """A completed workout: binary sensor off, summary values, current values 0."""
+    """A completed workout: binary sensor off, totals, averages and idle currents."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
 
     workout = state_of(hass, "workout")
     assert workout.state == STATE_OFF
-    assert workout.attributes["icon"] == "mdi:bike"
+    assert workout.attributes["friendly_name"] == "Test on Peloton Workout"
     assert {key: workout.attributes[key] for key in BINARY_SENSOR_ATTRIBUTES} == {
-        "Workout Type": "cycling",
-        "Device Type": "home_bike_plus",
-        "Ride Title": "30 min Synthetic Ride",
-        "Ride Description": "Synthetic class used in tests.",
-        "Workout Image": "https://example.invalid/ride.png",
-        "FTP": 200,
-        "Instructor": "Synthetic Instructor",
-        "Paused": False,
+        "workout_type": "cycling",
+        "device_type": "home_bike_plus",
+        "ride_title": "30 min Synthetic Ride",
+        "ride_description": "Synthetic class used in tests.",
+        "workout_image": "https://example.invalid/ride.png",
+        "ftp": 200,
+        "instructor": "Synthetic Instructor",
+        "paused": False,
     }
 
-    expected_states = {
-        "start_time": "2025-10-09T08:53:20+00:00",
-        "end_time": "2025-10-09T09:23:20+00:00",
-        "duration": "30.0",
-        "leaderboard:_rank": "120",
-        "power_output": "100.0",
-        "distance": "10.5",
-        "total_calories": "450",
-        "total_output": "360",
-        "heart_rate:_average": "140",
-        "heart_rate:_max": "165",
-        "heart_rate:_current": "0",
-        "cadence:_average": "85",
-        "cadence:_current": "0",
-        "speed:_max": "24.5",
-        "speed:_current": "0.0",
+    expected = {
+        "start_time": ("2025-10-09T08:53:20+00:00", None),
+        "end_time": ("2025-10-09T09:23:20+00:00", None),
+        "duration": ("30.0", "min"),
+        "leaderboard:_rank": ("120", None),
+        "leaderboard:_total_users": ("4000", None),
+        "power_output": ("100.0", "Wh"),
+        "distance": ("10.5", "mi"),
+        "total_calories": ("450", "kcal"),
+        "active_calories": ("380", "kcal"),
+        "total_output": ("360", "kJ"),
+        "heart_rate:_average": ("140", "bpm"),
+        "heart_rate:_max": ("165", "bpm"),
+        "heart_rate:_current": (STATE_UNKNOWN, "bpm"),
+        "resistance:_average": ("42", "%"),
+        "resistance:_current": ("0", "%"),
+        # Peloton's displayed average (avg_speed), not the metric average.
+        "speed:_average": ("17.5", "mph"),
+        "speed:_max": ("24.5", "mph"),
+        "speed:_current": ("0", "mph"),
+        "cadence:_average": ("85", "rpm"),
+        "cadence:_current": ("0", "rpm"),
+        "output:_average": ("200", "W"),
+        "output:_max": ("320", "W"),
+        "output:_current": ("0", "W"),
+        "total_workouts": ("96", None),
     }
-    actual_states = {suffix: state_of(hass, suffix).state for suffix in expected_states}
-    assert actual_states == expected_states
+    actual = {
+        suffix: (
+            state_of(hass, suffix).state,
+            state_of(hass, suffix).attributes.get("unit_of_measurement"),
+        )
+        for suffix in expected
+    }
+    assert actual == expected
 
-    # Units today come partly from the API's display_unit strings (issue #101).
-    expected_units = {
-        "power_output": "Wh",
-        "distance": "mi",
-        "total_calories": "kcal",
-        "total_output": "kj",
-        "heart_rate:_average": "bpm",
-        "heart_rate:_current": "bpm",
-        "speed:_max": "mph",
+
+@pytest.mark.usefixtures("mock_api")
+async def test_sensor_classes(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Device and state classes that long-term statistics depend on."""
+    await setup_integration(hass, mock_config_entry)
+
+    expected = {
+        "power_output": ("energy", "total"),
+        "total_calories": ("energy", "total"),
+        "active_calories": ("energy", "total"),
+        "total_output": ("energy", "total"),
+        "duration": ("duration", "measurement"),
+        "distance": ("distance", "measurement"),
+        "speed:_max": ("speed", "measurement"),
+        "output:_current": ("power", "measurement"),
+        "heart_rate:_current": (None, "measurement"),
+        "total_workouts": (None, "total_increasing"),
     }
-    actual_units = {
-        suffix: state_of(hass, suffix).attributes.get("unit_of_measurement")
-        for suffix in expected_units
+    actual = {
+        suffix: (
+            state_of(hass, suffix).attributes.get("device_class"),
+            state_of(hass, suffix).attributes.get("state_class"),
+        )
+        for suffix in expected
     }
-    assert actual_units == expected_units
+    assert actual == expected
 
 
 @pytest.mark.parametrize(
@@ -225,24 +323,64 @@ async def test_completed_workout(
     [(in_progress_list(), in_progress_detail())],
     ids=["in_progress"],
 )
-@pytest.mark.usefixtures("mock_api")
+@pytest.mark.usefixtures("mock_api", "imperial")
 async def test_workout_in_progress(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
-    """An in-progress workout turns the binary sensor on and fills current values."""
+    """A running workout turns the binary sensor on and fills current values."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")  # 7 minutes into the class
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
 
     binary = state_of(hass, "workout")
     assert binary.state == STATE_ON
-    assert binary.attributes["icon"] == "mdi:bike-fast"
     assert set(BINARY_SENSOR_ATTRIBUTES) <= set(binary.attributes)
-    assert state_of(hass, "start_time").state == "2025-10-09T08:53:20+00:00"
     assert state_of(hass, "end_time").state == STATE_UNKNOWN
     assert state_of(hass, "heart_rate:_current").state == "148"
     assert state_of(hass, "cadence:_current").state == "88"
     assert state_of(hass, "resistance:_current").state == "44"
     assert state_of(hass, "speed:_current").state == "20.4"
+    assert state_of(hass, "output:_current").state == "190"
+
+
+@pytest.mark.parametrize(
+    ("workouts_json", "workout_json", "now", "state"),
+    [
+        # 30 minute class started at 08:53:20; 15 minutes of grace.
+        (in_progress_list(), in_progress_detail(), "2025-10-09 09:38:00", STATE_ON),
+        (in_progress_list(), in_progress_detail(), "2025-10-09 09:39:00", STATE_OFF),
+        # No class length: the 240 minute default limit applies.
+        (
+            in_progress_list(ride=load_fixture("api/workout_just_ride.json")["ride"]),
+            in_progress_detail(ride=load_fixture("api/workout_just_ride.json")["ride"]),
+            "2025-10-09 12:50:00",
+            STATE_ON,
+        ),
+        (
+            in_progress_list(ride=load_fixture("api/workout_just_ride.json")["ride"]),
+            in_progress_detail(ride=load_fixture("api/workout_just_ride.json")["ride"]),
+            "2025-10-09 12:54:00",
+            STATE_OFF,
+        ),
+    ],
+    ids=["class_in_grace", "class_abandoned", "just_ride_open", "just_ride_abandoned"],
+)
+@pytest.mark.usefixtures("mock_api")
+async def test_abandoned_workout_guard(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    now: str,
+    state: str,
+) -> None:
+    """A workout left in progress long after it should have ended counts as ended."""
+    freezer.move_to(f"{now}+00:00")
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "workout").state == state
+    expected_current = "0" if state == STATE_OFF else "88"
+    assert state_of(hass, "cadence:_current").state == expected_current
 
 
 @pytest.mark.parametrize(
@@ -256,42 +394,52 @@ async def test_end_time_from_duration(
 ) -> None:
     """An end time equal to the start time is replaced by start + duration (#86)."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
 
-    assert state_of(hass, "start_time").state == "2025-10-09T08:53:20+00:00"
     assert state_of(hass, "end_time").state == "2025-10-09T09:23:20+00:00"
 
 
 @pytest.mark.parametrize(
-    "workout_json",
+    ("workout_json", "zone"),
     [
-        load_fixture("api/workout.json") | {"timezone": "Not/AZone"},
-        load_fixture("api/workout.json") | {"timezone": ""},
-        load_fixture("api/workout.json") | {"timezone": None},
-        load_fixture("api/workout.json") | {"timezone": "Etc/GMT+5"},
-        load_fixture("api/workout.json") | {"timezone": "America/New_York/"},
-        load_fixture("api/workout.json") | {"timezone": "../x"},
+        (load_fixture("api/workout.json"), "America/New_York"),
+        (load_fixture("api/workout.json") | {"timezone": "Not/AZone"}, "UTC"),
+        (load_fixture("api/workout.json") | {"timezone": ""}, "UTC"),
+        (load_fixture("api/workout.json") | {"timezone": None}, "UTC"),
+        (load_fixture("api/workout.json") | {"timezone": "Etc/GMT+5"}, "Etc/GMT+5"),
+        (load_fixture("api/workout.json") | {"timezone": "America/New_York/"}, "UTC"),
+        (load_fixture("api/workout.json") | {"timezone": "../x"}, "UTC"),
+        (load_fixture("api/workout.json") | {"timezone": "A" * 300}, "UTC"),
     ],
-    ids=["unknown", "empty", "missing", "etc_gmt", "trailing_slash", "relative"],
+    ids=[
+        "valid",
+        "unknown",
+        "empty",
+        "missing",
+        "etc_gmt",
+        "trailing_slash",
+        "relative",
+        "overlong",
+    ],
 )
 @pytest.mark.usefixtures("mock_api")
 async def test_workout_timezones(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, zone: str
 ) -> None:
-    """Unknown or missing workout time zones fall back to UTC without errors."""
+    """Workout time zones resolve; unknown or malformed ones fall back to UTC."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
 
+    assert str(mock_config_entry.runtime_data.data.timezone) == zone
     assert state_of(hass, "start_time").state == "2025-10-09T08:53:20+00:00"
 
 
 @pytest.mark.usefixtures("mock_api", "entity_registry_enabled_by_default")
 async def test_workout_counts(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
 ) -> None:
-    """Workout count sensors map API slugs to their display names."""
+    """Workout count sensors map API slugs to their names."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
 
     expected = {
         "cycling_count": "30",
@@ -308,39 +456,182 @@ async def test_workout_counts(
         "yoga_count": "11",
     }
     assert {suffix: state_of(hass, suffix).state for suffix in expected} == expected
+    entry = entity_registry.async_get(EXPECTED_ENTITIES["cycling_count"])
+    assert entry.entity_category is EntityCategory.DIAGNOSTIC
 
 
 @pytest.mark.parametrize("workouts_json", [load_fixture("api/workouts_empty.json")])
-@pytest.mark.usefixtures("mock_api", "entity_registry_enabled_by_default")
+@pytest.mark.usefixtures("mock_api")
 async def test_no_workouts(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
-    """An account without workouts sets up: binary sensor off, stats unknown."""
+    """An account without workouts: binary sensor off, workout values unknown."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
 
     assert state_of(hass, "workout").state == STATE_OFF
-    assert state_of(hass, "start_time").state == STATE_UNKNOWN
+    assert state_of(hass, "workout").attributes["workout_type"] is None
+    for suffix in ("start_time", "end_time", "duration", "leaderboard:_rank"):
+        assert state_of(hass, suffix).state == STATE_UNKNOWN, suffix
     assert state_of(hass, "heart_rate:_average").state == STATE_UNKNOWN
-    assert state_of(hass, "heart_rate:_current").state == "0"
-    assert state_of(hass, "leaderboard:_rank").state == "0"
-    assert state_of(hass, "cycling_count").state == "30"
+    assert state_of(hass, "heart_rate:_current").state == STATE_UNKNOWN
+    assert state_of(hass, "cadence:_current").state == "0"
+    assert state_of(hass, "total_workouts").state == "96"
 
 
-async def test_poll_failure_makes_entities_unavailable(
+@pytest.mark.parametrize(
+    "workout_json",
+    [
+        load_fixture("api/workout.json")
+        | {"leaderboard_rank": None, "total_leaderboard_users": None}
+    ],
+)
+@pytest.mark.usefixtures("mock_api")
+async def test_missing_leaderboard_is_unknown(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """A workout without a leaderboard shows unknown rather than 0."""
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "leaderboard:_rank").state == STATE_UNKNOWN
+    assert state_of(hass, "leaderboard:_total_users").state == STATE_UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("settings_json", "distance", "speed"),
+    [
+        ({"distance_unit": "metric"}, ("16.898", "km"), ("39.43", "km/h")),
+        ({}, ("16.898", "km"), ("39.43", "km/h")),
+    ],
+    ids=["metric", "unset"],
+)
+@pytest.mark.usefixtures("mock_api")
+async def test_units_follow_settings(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    distance: tuple[str, str],
+    speed: tuple[str, str],
+) -> None:
+    """Distance and speed are converted to the unit of the Peloton settings."""
+    await setup_integration(hass, mock_config_entry)
+
+    state = state_of(hass, "distance")
+    assert (state.state, state.attributes["unit_of_measurement"]) == distance
+    state = state_of(hass, "speed:_max")
+    assert (state.state, state.attributes["unit_of_measurement"]) == speed
+
+
+def rower_graph() -> dict[str, Any]:
+    """Return a synthetic rower performance graph (distance in meters)."""
+    return {
+        "duration": 1200,
+        "summaries": [
+            {"slug": "total_output", "display_unit": "kj", "value": 150},
+            {"slug": "distance", "display_unit": "m", "value": 4023.36},
+            {"slug": "calories", "display_unit": "kcal", "value": 200},
+        ],
+        "average_summaries": [
+            {"slug": "avg_output", "display_unit": "watts", "value": 125},
+            {"slug": "avg_stroke_rate", "display_unit": "spm", "value": 24},
+        ],
+        "metrics": [
+            {
+                "slug": "output",
+                "display_unit": "watts",
+                "average_value": 120,
+                "max_value": 210,
+                "values": [100, 130],
+            },
+            {
+                "slug": "stroke_rate",
+                "display_unit": "spm",
+                "average_value": 24,
+                "max_value": 30,
+                "values": [22, 25],
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "workout_json",
+    [load_fixture("api/workout.json") | {"fitness_discipline": "caesar"}],
+    ids=["rower"],
+)
+@pytest.mark.usefixtures("imperial")
+async def test_rower_workout(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    workout_json: dict[str, Any],
+) -> None:
+    """Rower distance in meters becomes miles; bike-only metrics are unknown."""
+    aioclient_mock.clear_requests()
+    _register_graph(aioclient_mock, rower_graph(), workout_json)
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "distance").state == "2.5"
+    assert state_of(hass, "distance").attributes["unit_of_measurement"] == "mi"
+    assert state_of(hass, "output:_average").state == "125"
+    assert state_of(hass, "cadence:_average").state == STATE_UNKNOWN
+    assert state_of(hass, "speed:_max").state == STATE_UNKNOWN
+    assert state_of(hass, "total_calories").state == "200"
+
+
+@pytest.mark.parametrize(
+    "workout_json",
+    [load_fixture("api/workout.json") | {"fitness_discipline": "strength"}],
+    ids=["strength"],
+)
+async def test_workout_without_metrics(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    workout_json: dict[str, Any],
+) -> None:
+    """A workout without metrics (for example strength from the app) is handled."""
+    aioclient_mock.clear_requests()
+    _register_graph(
+        aioclient_mock,
+        {"duration": 600, "summaries": [], "metrics": []},
+        workout_json,
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "workout").attributes["workout_type"] == "strength"
+    assert state_of(hass, "heart_rate:_average").state == STATE_UNKNOWN
+    assert state_of(hass, "distance").state == STATE_UNKNOWN
+    assert state_of(hass, "cadence:_current").state == "0"
+
+
+def _register_graph(
+    aioclient_mock: AiohttpClientMocker,
+    graph: dict[str, Any],
+    workout: dict[str, Any],
+) -> None:
+    """Register the API with a custom performance graph and workout detail."""
+    workout_id = "fedcba9876543210fedcba9876543210"
+    for path, body in (
+        ("/api/me", load_fixture("me.json")),
+        (f"/api/user/{USER_ID}/settings", load_fixture("settings.json")),
+        (f"/api/user/{USER_ID}/workouts", load_fixture("api/workouts.json")),
+        (f"/api/workout/{workout_id}/performance_graph", graph),
+        (f"/api/workout/{workout_id}", workout),
+    ):
+        aioclient_mock.get(f"{API_BASE}{path}", json=body, headers=JSON_HEADERS)
+
+
+async def test_entities_survive_a_few_failed_polls(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_api: AiohttpClientMocker,
     freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Current behaviour: one failed poll makes every entity unavailable.
-
-    For the fan use case this turns the workout sensor unavailable mid-ride.
-    Roadmap phase 3 keeps the binary sensor's last state through a few failed
-    polls; this assertion is expected to change then.
-    """
+    """Entities keep their last state for a few failed polls, then go unavailable."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
     assert state_of(hass, "workout").state == STATE_OFF
 
     mock_api.clear_requests()
@@ -350,27 +641,155 @@ async def test_poll_failure_makes_entities_unavailable(
         text="unavailable",
         headers=JSON_HEADERS,
     )
-    await advance(hass, freezer)
+    coordinator = mock_config_entry.runtime_data
+    for failures in range(1, TOLERATED_FAILED_POLLS + 1):
+        await advance(hass, freezer)
+        assert coordinator.failed_polls == failures
+        # Home Assistant only writes state on the first failure of a streak;
+        # make the entities re-read their availability after every failure.
+        coordinator.async_update_listeners()
+        assert state_of(hass, "workout").state == STATE_OFF
+        assert state_of(hass, "heart_rate:_average").state == "140"
+
+    await advance(hass, freezer, timedelta(seconds=60))
 
     assert state_of(hass, "workout").state == STATE_UNAVAILABLE
     assert state_of(hass, "heart_rate:_average").state == STATE_UNAVAILABLE
 
 
-@pytest.mark.parametrize(
-    ("settings_json", "length", "speed"),
-    [({"distance_unit": "metric"}, "km", "km/h"), ({}, None, None)],
-    ids=["metric", "unset"],
-)
-@pytest.mark.usefixtures("mock_api")
-async def test_distance_units_follow_settings(
+async def test_failed_poll_count_resets_after_success(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    length: str | None,
-    speed: str | None,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Distance and speed units come from the user's settings."""
+    """Failures separated by a successful poll do not add up."""
     await setup_integration(hass, mock_config_entry)
-    await refresh(hass, mock_config_entry)
+    for _ in range(TOLERATED_FAILED_POLLS + 1):
+        mock_api.clear_requests()
+        mock_api.get(
+            f"{API_BASE}/api/user/{USER_ID}/workouts",
+            status=503,
+            text="unavailable",
+            headers=JSON_HEADERS,
+        )
+        await advance(hass, freezer)
+        assert state_of(hass, "workout").state == STATE_OFF
+        mock_api.clear_requests()
+        _register_graph(
+            mock_api,
+            load_fixture("performance_graph.json"),
+            load_fixture("api/workout.json"),
+        )
+        await advance(hass, freezer)
+        assert state_of(hass, "workout").state == STATE_OFF
+    assert mock_config_entry.runtime_data.failed_polls == 0
 
-    assert state_of(hass, "distance").attributes.get("unit_of_measurement") == length
-    assert state_of(hass, "speed:_max").attributes.get("unit_of_measurement") == speed
+
+async def test_unexpected_errors_count_as_failed_polls(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Errors that are not Peloton errors also end the tolerance."""
+    await setup_integration(hass, mock_config_entry)
+    coordinator = mock_config_entry.runtime_data
+
+    with patch.object(
+        coordinator.client, "async_get_latest_workout", side_effect=RuntimeError
+    ):
+        for _ in range(TOLERATED_FAILED_POLLS + 1):
+            await advance(hass, freezer)
+
+    assert coordinator.failed_polls == TOLERATED_FAILED_POLLS + 1
+    assert state_of(hass, "workout").state == STATE_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    ("workouts_json", "workout_json"),
+    [(in_progress_list(), in_progress_detail())],
+    ids=["in_progress"],
+)
+async def test_long_rate_limit_makes_entities_unavailable(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A rate limit with a long wait does not keep showing a running workout."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    await setup_integration(hass, mock_config_entry)
+    assert state_of(hass, "workout").state == STATE_ON
+
+    mock_api.clear_requests()
+    mock_api.get(
+        f"{API_BASE}/api/user/{USER_ID}/workouts",
+        status=429,
+        text="slow down",
+        headers={"content-type": "text/plain", "Retry-After": "900"},
+    )
+    await advance(hass, freezer, timedelta(seconds=10))
+
+    assert state_of(hass, "workout").state == STATE_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    ("workouts_json", "workout_json"),
+    [
+        (
+            in_progress_list(ride=load_fixture("api/workout_just_ride.json")["ride"]),
+            in_progress_detail(ride=load_fixture("api/workout_just_ride.json")["ride"]),
+        )
+    ],
+    ids=["just_ride"],
+)
+async def test_max_workout_minutes_option(
+    hass: HomeAssistant,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The max_workout_minutes option sets when a Just Ride counts as ended."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id=USER_ID,
+        data={CONF_USERNAME: USERNAME, CONF_TOKEN: stored_tokens()},
+        options={"max_workout_minutes": 60},
+    )
+    freezer.move_to("2025-10-09 09:50:00+00:00")
+    await setup_integration(hass, entry)
+    assert state_of(hass, "workout").state == STATE_ON
+
+    freezer.move_to("2025-10-09 09:55:00+00:00")
+    await advance(hass, freezer)
+
+    assert state_of(hass, "workout").state == STATE_OFF
+
+
+@pytest.mark.usefixtures("mock_api")
+async def test_energy_totals_reset_at_workout_start(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Per-workout totals report the workout start as last_reset."""
+    await setup_integration(hass, mock_config_entry)
+
+    for suffix in ("power_output", "total_calories", "active_calories", "total_output"):
+        assert (
+            state_of(hass, suffix).attributes["last_reset"]
+            == "2025-10-09T08:53:20+00:00"
+        ), suffix
+    assert "last_reset" not in state_of(hass, "total_workouts").attributes
+
+
+@pytest.mark.parametrize("workouts_json", [load_fixture("api/workouts_empty.json")])
+@pytest.mark.usefixtures("mock_api")
+async def test_energy_totals_without_workout(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Without a workout the totals and their last_reset are unknown."""
+    await setup_integration(hass, mock_config_entry)
+
+    state = state_of(hass, "total_calories")
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes.get("last_reset") is None

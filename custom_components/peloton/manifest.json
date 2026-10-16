@@ -1,6 +1,9 @@
 {
   "domain": "peloton",
   "name": "Peloton",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@edwork"
   ],
