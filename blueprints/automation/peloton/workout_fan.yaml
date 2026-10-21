@@ -1,0 +1,116 @@
+blueprint:
+  name: Peloton workout fan
+  description: >-
+    Turn a fan (or any device that can be switched on and off) on when a
+    Peloton workout starts, and off a set time after it ends. The workout
+    sensor is updated by polling, so the fan starts within one polling
+    interval (15 seconds by default) of the workout starting.
+  domain: automation
+  source_url: https://github.com/edwork/homeassistant-peloton-sensor/blob/master/blueprints/automation/peloton/workout_fan.yaml
+  input:
+    workout_sensor:
+      name: Workout sensor
+      description: The Peloton "Workout" binary sensor.
+      selector:
+        entity:
+          filter:
+            - integration: peloton
+              domain: binary_sensor
+    fan:
+      name: Fan
+      description: The fans, switches, lights or input booleans to turn on and off.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: [fan, switch, light, input_boolean]
+    off_delay:
+      name: Turn off after
+      description: >-
+        How long to keep the fan running after the workout ends. The fan is
+        also turned off when the workout sensor has been unavailable this long
+        during a workout.
+      default:
+        minutes: 5
+      selector:
+        duration: {}
+    skip_workout_types:
+      name: Ignore these workout types
+      description: Workouts of these types do not turn the fan on.
+      default: [meditation]
+      selector:
+        select:
+          multiple: true
+          custom_value: true
+          options:
+            - label: Cycling
+              value: cycling
+            - label: Bike bootcamp
+              value: bike_bootcamp
+            - label: Running
+              value: running
+            - label: Walking
+              value: walking
+            - label: Tread bootcamp
+              value: circuit
+            - label: Rowing
+              value: caesar
+            - label: Row bootcamp
+              value: caesar_bootcamp
+            - label: Cardio
+              value: cardio
+            - label: Strength
+              value: strength
+            - label: Yoga
+              value: yoga
+            - label: Stretching
+              value: stretching
+            - label: Meditation
+              value: meditation
+
+mode: restart
+max_exceeded: silent
+
+trigger_variables:
+  workout_sensor: !input workout_sensor
+
+triggers:
+  # No "from": the fan also turns on when the sensor comes back "on" after
+  # being unavailable (a short outage, a retried setup or a reload). A workout
+  # that is already running when Home Assistant starts does not fire this.
+  - trigger: state
+    entity_id: !input workout_sensor
+    to: "on"
+    id: started
+  # Anything other than "on" counts as ended, including "unavailable" and
+  # "unknown", so the fan is not left on when the integration stops
+  # reporting. The delay counts from when the sensor leaves "on"; changes
+  # among the other states (on -> unavailable -> off) do not restart it, and
+  # changes while idle (off -> unavailable -> off on a reload) do not fire.
+  - trigger: template
+    value_template: "{{ not is_state(workout_sensor, 'on') }}"
+    for: !input off_delay
+    id: ended
+
+variables:
+  skip_workout_types: !input skip_workout_types
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: started
+          - condition: template
+            value_template: >-
+              {{ state_attr(workout_sensor, 'workout_type') not in skip_workout_types }}
+        sequence:
+          - action: homeassistant.turn_on
+            target:
+              entity_id: !input fan
+      - conditions:
+          - condition: trigger
+            id: ended
+        sequence:
+          - action: homeassistant.turn_off
+            target:
+              entity_id: !input fan

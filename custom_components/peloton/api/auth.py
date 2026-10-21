@@ -18,7 +18,7 @@ from typing import Any, Self
 
 import aiohttp
 
-from ._http import raise_for_transient, read_body
+from ._http import describe_error, raise_for_transient, read_body
 from .const import (
     CLIENT_ID,
     REFRESH_MARGIN,
@@ -163,7 +163,9 @@ async def async_revoke(session: aiohttp.ClientSession, refresh_token: str) -> No
             data, text = await read_body(resp)
             headers = resp.headers
     except (aiohttp.ClientError, TimeoutError) as err:
-        raise PelotonConnectionError(f"Revoke: cannot reach Peloton: {err}") from err
+        raise PelotonConnectionError(
+            f"Revoke: cannot reach Peloton: {describe_error(err)}"
+        ) from err
     if status == 200:
         _LOGGER.debug("Refresh token revoked")
         return
@@ -188,7 +190,9 @@ async def _async_token_request(
             data, text = await read_body(resp)
             headers = resp.headers
     except (aiohttp.ClientError, TimeoutError) as err:
-        raise PelotonConnectionError(f"Login: cannot reach Peloton: {err}") from err
+        raise PelotonConnectionError(
+            f"Login: cannot reach Peloton: {describe_error(err)}"
+        ) from err
 
     if (
         status == 200

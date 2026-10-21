@@ -33,6 +33,11 @@ from .entity import PelotonEntity
 PARALLEL_UPDATES = 0
 
 BEATS_PER_MINUTE = "bpm"
+STROKES_PER_MINUTE = "spm"
+# Pace units, in decimal minutes as Peloton reports them (3.5 is 3:30).
+MINUTES_PER_MILE = "min/mi"
+MINUTES_PER_KILOMETER = "min/km"
+MINUTES_PER_500_METERS = "min/500m"
 
 # Units Peloton uses in display_unit, mapped to Home Assistant units.
 _DISTANCE_UNITS: dict[str, str] = {
@@ -46,6 +51,11 @@ _SPEED_UNITS: dict[str, str] = {
     "mph": UnitOfSpeed.MILES_PER_HOUR,
     "kph": UnitOfSpeed.KILOMETERS_PER_HOUR,
     "km/h": UnitOfSpeed.KILOMETERS_PER_HOUR,
+}
+# Distance unit that each tread pace unit is "per".
+_PACE_UNITS: dict[str, str] = {
+    MINUTES_PER_MILE: UnitOfLength.MILES,
+    MINUTES_PER_KILOMETER: UnitOfLength.KILOMETERS,
 }
 
 
@@ -77,6 +87,16 @@ def _speed_unit(data: PelotonData) -> str:
     if _imperial(data):
         return UnitOfSpeed.MILES_PER_HOUR
     return UnitOfSpeed.KILOMETERS_PER_HOUR
+
+
+def _pace_unit(data: PelotonData) -> str:
+    """Tread pace unit of the account's Peloton settings (metric if unset)."""
+    return MINUTES_PER_MILE if _imperial(data) else MINUTES_PER_KILOMETER
+
+
+def _elevation_unit(data: PelotonData) -> str:
+    """Elevation unit of the account's Peloton settings (metric if unset)."""
+    return UnitOfLength.FEET if _imperial(data) else UnitOfLength.METERS
 
 
 def _summary(data: PelotonData, *slugs: str) -> Summary | None:
@@ -122,8 +142,12 @@ def _maximum(data: PelotonData, slug: str) -> int | float | None:
 
 
 def _current(data: PelotonData, slug: str, idle: int | None) -> int | float | None:
-    """Return the latest sample during a workout, else ``idle``."""
-    if not data.active:
+    """Return the latest sample during a workout, else ``idle``.
+
+    While a workout is paused Peloton records no samples, so the latest one
+    is stale; the idle value is shown instead.
+    """
+    if not data.active or (data.workout is not None and data.workout.is_paused):
         return idle
     metric = _metric(data, slug)
     return metric.last if metric else None
@@ -133,15 +157,47 @@ def _speed(data: PelotonData, value: float | None) -> float | None:
     """Convert a speed from Peloton's display unit to the settings unit."""
     if not value:
         return value
-    graph = data.performance_graph
-    metric = graph.metrics.get("speed") if graph else None
-    summary = graph.average_summaries.get("avg_speed") if graph else None
-    unit = (metric.display_unit if metric else None) or (
-        summary.display_unit if summary else None
-    )
-    if (source := _SPEED_UNITS.get(unit or "")) is None:
+    if (source := _SPEED_UNITS.get(_display_unit(data, "speed") or "")) is None:
         return None
     return round(SpeedConverter.convert(value, source, _speed_unit(data)), 2)
+
+
+def _display_unit(data: PelotonData, slug: str) -> str | None:
+    """Return the display unit of a metric, or of its average summary."""
+    graph = data.performance_graph
+    metric = graph.metrics.get(slug) if graph else None
+    summary = graph.average_summaries.get(f"avg_{slug}") if graph else None
+    return (metric.display_unit if metric else None) or (
+        summary.display_unit if summary else None
+    )
+
+
+def _pace(data: PelotonData, value: float | None) -> float | None:
+    """Convert a tread pace from Peloton's display unit to the settings unit."""
+    if not value:
+        return None
+    if (source := _PACE_UNITS.get(_display_unit(data, "pace") or "")) is None:
+        return None
+    target = _PACE_UNITS[_pace_unit(data)]
+    # Minutes per distance scale with the distance, inversely to a speed.
+    return round(value * DistanceConverter.convert(1, target, source), 2)
+
+
+def _split_pace(value: float | None) -> float | None:
+    """Return a rower split pace; 0 means no pace (not moving)."""
+    return value or None
+
+
+def _elevation(data: PelotonData) -> float | None:
+    """Return the elevation gain, converted to the settings unit."""
+    summary = _summary(data, "elevation")
+    if summary is None or summary.value is None:
+        return None
+    if (source := _DISTANCE_UNITS.get(summary.display_unit or "")) is None:
+        return None
+    return round(
+        DistanceConverter.convert(summary.value, source, _elevation_unit(data)), 1
+    )
 
 
 def _distance(data: PelotonData) -> float | None:
@@ -193,11 +249,20 @@ def _metric_sensors(
     *,
     idle: int | None,
     device_class: SensorDeviceClass | None = None,
+    enabled: bool = True,
+    convert: Callable[[PelotonData, float | None], float | None] | None = None,
+    unit_fn: Callable[[PelotonData], str] | None = None,
+    state_class: SensorStateClass | None = SensorStateClass.MEASUREMENT,
 ) -> tuple[PelotonSensorEntityDescription, ...]:
     """Return the average, max and current sensors of one metric.
 
-    ``idle`` is the current value between workouts.
+    ``idle`` is the current value between workouts. ``convert`` turns a value
+    in Peloton's display unit into the unit of the sensor.
     """
+
+    def value(data: PelotonData, raw: float | None) -> float | None:
+        return convert(data, raw) if convert is not None else raw
+
     return tuple(
         PelotonSensorEntityDescription(
             key=f"{slug}_{kind}",
@@ -205,13 +270,15 @@ def _metric_sensors(
             unique_suffix=f"{slug}:_{kind}",
             native_unit_of_measurement=unit,
             device_class=device_class,
-            state_class=SensorStateClass.MEASUREMENT,
+            state_class=state_class,
+            entity_registry_enabled_default=enabled,
+            unit_fn=unit_fn,
             value_fn=value_fn,
         )
         for kind, value_fn in (
-            ("average", lambda data: _average(data, slug)),
-            ("max", lambda data: _maximum(data, slug)),
-            ("current", lambda data: _current(data, slug, idle)),
+            ("average", lambda data: value(data, _average(data, slug))),
+            ("max", lambda data: value(data, _maximum(data, slug))),
+            ("current", lambda data: value(data, _current(data, slug, idle))),
         )
     )
 
@@ -288,6 +355,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
         value_fn=_duration,
     ),
     PelotonSensorEntityDescription(
@@ -375,6 +443,49 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         value_fn=lambda data: data.user.total_workouts,
     ),
     *(_count_sensor(key, slug) for key, slug in WORKOUT_COUNTS),
+    # Rower and tread sensors (#105), disabled by default. "max" of a pace is
+    # the fastest pace.
+    *_metric_sensors("stroke_rate", STROKES_PER_MINUTE, idle=0, enabled=False),
+    *_metric_sensors(
+        "split_pace",
+        MINUTES_PER_500_METERS,
+        idle=None,
+        enabled=False,
+        convert=lambda _data, value: _split_pace(value),
+    ),
+    PelotonSensorEntityDescription(
+        key="stroke_count",
+        translation_key="stroke_count",
+        unique_suffix="stroke_count",
+        state_class=SensorStateClass.TOTAL,
+        entity_registry_enabled_default=False,
+        last_reset_fn=_start_time,
+        value_fn=lambda data: _summary_value(data, "stroke_count"),
+    ),
+    *_metric_sensors(
+        "pace",
+        MINUTES_PER_MILE,
+        idle=None,
+        enabled=False,
+        convert=_pace,
+        unit_fn=_pace_unit,
+        # No long-term statistics: Home Assistant cannot convert pace units,
+        # so a change of the Peloton distance unit would stop them and raise
+        # a repair.
+        state_class=None,
+    ),
+    *_metric_sensors("incline", PERCENTAGE, idle=0, enabled=False),
+    PelotonSensorEntityDescription(
+        key="elevation",
+        translation_key="elevation",
+        unique_suffix="elevation",
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        entity_registry_enabled_default=False,
+        unit_fn=_elevation_unit,
+        value_fn=_elevation,
+    ),
 )
 
 

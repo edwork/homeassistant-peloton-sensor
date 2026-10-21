@@ -1,0 +1,168 @@
+# Peloton view for a dashboard, built from Home Assistant's own cards.
+#
+# Entity ids start with "<first name>_on_peloton_". Replace every
+# "name_on_peloton" below with yours (for example "jane_on_peloton").
+# On installs that existed before version 1.0, "Total work" is
+# sensor.<prefix>_power_output instead of sensor.<prefix>_total_work.
+#
+# To use it: in a dashboard's edit mode add a view (+), open the view dialog's
+# three-dot menu, choose "Edit in YAML", and replace its contents with this file.
+title: Peloton
+path: peloton
+icon: mdi:bike
+type: sections
+max_columns: 3
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        heading: Workout
+        icon: mdi:bike
+      - type: tile
+        entity: binary_sensor.name_on_peloton_workout
+        name: Workout
+        grid_options:
+          columns: 12
+      # Live values, shown only while a workout is in progress. The three
+      # gauges share a row.
+      # Gauges are also hidden when the workout has no value for the metric
+      # (for example strength or yoga), instead of showing a warning.
+      - type: gauge
+        entity: sensor.name_on_peloton_output_current
+        name: Output
+        grid_options:
+          columns: 4
+        min: 0
+        max: 400
+        needle: true
+        visibility:
+          - &workout_on
+            condition: state
+            entity: binary_sensor.name_on_peloton_workout
+            state: "on"
+          - condition: state
+            entity: sensor.name_on_peloton_output_current
+            state_not: [unknown, unavailable]
+      - type: gauge
+        entity: sensor.name_on_peloton_cadence_current
+        name: Cadence
+        grid_options:
+          columns: 4
+        min: 0
+        max: 130
+        needle: true
+        visibility:
+          - *workout_on
+          - condition: state
+            entity: sensor.name_on_peloton_cadence_current
+            state_not: [unknown, unavailable]
+      - type: gauge
+        entity: sensor.name_on_peloton_resistance_current
+        name: Resistance
+        grid_options:
+          columns: 4
+        min: 0
+        max: 100
+        needle: true
+        visibility:
+          - *workout_on
+          - condition: state
+            entity: sensor.name_on_peloton_resistance_current
+            state_not: [unknown, unavailable]
+      - type: tile
+        entity: sensor.name_on_peloton_heart_rate_current
+        name: Heart rate
+        features:
+          - type: trend-graph
+            hours_to_show: 1
+        visibility:
+          - *workout_on
+      - type: tile
+        entity: sensor.name_on_peloton_speed_current
+        name: Speed
+        features:
+          - type: trend-graph
+            hours_to_show: 1
+        visibility:
+          - *workout_on
+
+  - type: grid
+    cards:
+      - type: heading
+        heading: Latest workout
+        icon: mdi:history
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set w = 'binary_sensor.name_on_peloton_workout' %}
+          {% set start = 'sensor.name_on_peloton_start_time' %}
+          {% if has_value(start) %}
+          **{{ state_attr(w, 'ride_title') or 'Workout' }}**
+          {%- if state_attr(w, 'instructor') %} with {{ state_attr(w, 'instructor') }}{% endif %}
+
+          {{ as_timestamp(states(start)) | timestamp_custom('%A %-d %B, %H:%M') }}
+          ({{ time_since(as_datetime(states(start))) }} ago)
+          {% else %}
+          No workouts yet.
+          {% endif %}
+      - type: tile
+        entity: sensor.name_on_peloton_duration
+        name: Duration
+      - type: tile
+        entity: sensor.name_on_peloton_total_output
+        name: Total output
+      - type: tile
+        entity: sensor.name_on_peloton_total_calories
+        name: Calories
+      - type: tile
+        entity: sensor.name_on_peloton_distance
+        name: Distance
+      - type: tile
+        entity: sensor.name_on_peloton_output_average
+        name: Average output
+      - type: tile
+        entity: sensor.name_on_peloton_heart_rate_average
+        name: Average heart rate
+      - type: tile
+        entity: sensor.name_on_peloton_cadence_average
+        name: Average cadence
+      - type: tile
+        entity: sensor.name_on_peloton_leaderboard_rank
+        name: Leaderboard rank
+
+  - type: grid
+    cards:
+      - type: heading
+        heading: History
+        icon: mdi:chart-bar
+      - type: statistics-graph
+        title: Workouts per week
+        entities:
+          - sensor.name_on_peloton_total_workouts
+        stat_types:
+          - change
+        period: week
+        days_to_show: 90
+        chart_type: bar
+        grid_options:
+          columns: 12
+      - type: statistics-graph
+        title: Output per week
+        entities:
+          - sensor.name_on_peloton_total_output
+        stat_types:
+          - change
+        period: week
+        days_to_show: 90
+        chart_type: bar
+        grid_options:
+          columns: 12
+      - type: history-graph
+        title: Last 3 hours
+        hours_to_show: 3
+        entities:
+          - entity: sensor.name_on_peloton_output_current
+          - entity: sensor.name_on_peloton_cadence_current
+          - entity: sensor.name_on_peloton_heart_rate_current
+        grid_options:
+          columns: 12

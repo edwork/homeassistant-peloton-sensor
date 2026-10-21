@@ -75,19 +75,42 @@ EXPECTED_ENTITIES = {
     "stretching_count": "sensor.test_on_peloton_stretching_count",
     "walking_count": "sensor.test_on_peloton_walking_count",
     "yoga_count": "sensor.test_on_peloton_yoga_count",
+    "stroke_rate:_average": "sensor.test_on_peloton_stroke_rate_average",
+    "stroke_rate:_max": "sensor.test_on_peloton_stroke_rate_max",
+    "stroke_rate:_current": "sensor.test_on_peloton_stroke_rate_current",
+    "split_pace:_average": "sensor.test_on_peloton_split_pace_average",
+    "split_pace:_max": "sensor.test_on_peloton_split_pace_best",
+    "split_pace:_current": "sensor.test_on_peloton_split_pace_current",
+    "stroke_count": "sensor.test_on_peloton_stroke_count",
+    "pace:_average": "sensor.test_on_peloton_pace_average",
+    "pace:_max": "sensor.test_on_peloton_pace_best",
+    "pace:_current": "sensor.test_on_peloton_pace_current",
+    "incline:_average": "sensor.test_on_peloton_incline_average",
+    "incline:_max": "sensor.test_on_peloton_incline_max",
+    "incline:_current": "sensor.test_on_peloton_incline_current",
+    "elevation": "sensor.test_on_peloton_elevation",
+}
+
+# Rower and tread sensors (#105), added in version 3 of the config entry.
+MODALITY_SUFFIXES = {
+    key
+    for key in EXPECTED_ENTITIES
+    if key.split(":")[0]
+    in {"stroke_rate", "split_pace", "stroke_count", "pace", "incline", "elevation"}
 }
 
 # unique_id suffixes of entities that existed before version 3 of the config
 # entry. These must never change.
-LEGACY_SUFFIXES = set(EXPECTED_ENTITIES) - {
-    "output:_average",
-    "output:_max",
-    "output:_current",
-    "total_workouts",
-}
+LEGACY_SUFFIXES = (
+    set(EXPECTED_ENTITIES)
+    - {"output:_average", "output:_max", "output:_current", "total_workouts"}
+    - MODALITY_SUFFIXES
+)
 
-# Workout count sensors are registered but disabled by default.
-DISABLED_BY_DEFAULT = {key for key in EXPECTED_ENTITIES if key.endswith("_count")}
+# Workout count, rower and tread sensors are registered but disabled by default.
+DISABLED_BY_DEFAULT = {
+    key for key in EXPECTED_ENTITIES if key.endswith("_count")
+} | MODALITY_SUFFIXES
 
 BINARY_SENSOR_ATTRIBUTES = (
     "workout_type",
@@ -527,11 +550,13 @@ def rower_graph() -> dict[str, Any]:
         "summaries": [
             {"slug": "total_output", "display_unit": "kj", "value": 150},
             {"slug": "distance", "display_unit": "m", "value": 4023.36},
+            {"slug": "stroke_count", "display_unit": None, "value": 480},
             {"slug": "calories", "display_unit": "kcal", "value": 200},
         ],
         "average_summaries": [
             {"slug": "avg_output", "display_unit": "watts", "value": 125},
             {"slug": "avg_stroke_rate", "display_unit": "spm", "value": 24},
+            {"slug": "avg_split_pace", "display_unit": "min/500m", "value": 3.65},
         ],
         "metrics": [
             {
@@ -547,6 +572,73 @@ def rower_graph() -> dict[str, Any]:
                 "average_value": 24,
                 "max_value": 30,
                 "values": [22, 25],
+            },
+            {
+                "slug": "split_pace",
+                "display_unit": "min/500m",
+                "average_value": 3.66,
+                "max_value": 2.72,
+                "values": [3.9, 0],
+            },
+        ],
+    }
+
+
+def tread_graph(
+    distance_unit: str = "mi",
+    pace: tuple[float | None, ...] = (12.0, 10.0),
+    speed: tuple[float, ...] = (5.0, 6.0),
+) -> dict[str, Any]:
+    """Return a synthetic tread performance graph.
+
+    Like Peloton's, speed is only an alternative of the pace metric, and the
+    pace "max" is the fastest pace.
+    """
+    pace_unit = f"min/{distance_unit}"
+    return {
+        "duration": 1800,
+        "summaries": [
+            {"slug": "total_output", "display_unit": "kj", "value": 96},
+            {"slug": "distance", "display_unit": distance_unit, "value": 2.0},
+            {"slug": "elevation", "display_unit": "ft", "value": 269},
+            {"slug": "calories", "display_unit": "kcal", "value": 156},
+        ],
+        "average_summaries": [
+            {"slug": "avg_output", "display_unit": "watts", "value": 63},
+            {"slug": "avg_pace", "display_unit": pace_unit, "value": 11.43},
+            {"slug": "avg_incline", "display_unit": "%", "value": 3.0},
+            {"slug": "avg_speed", "display_unit": "mph", "value": 5.2},
+        ],
+        "metrics": [
+            {
+                "slug": "output",
+                "display_unit": "watts",
+                "average_value": 63,
+                "max_value": 220,
+                "values": [62, 103],
+            },
+            {
+                "slug": "pace",
+                "display_unit": pace_unit,
+                "average_value": 11.43,
+                "max_value": 8.5,
+                "values": list(pace),
+                "alternatives": [
+                    {
+                        "slug": "speed",
+                        "display_unit": "mph",
+                        "average_value": 5.2,
+                        "max_value": 7.06,
+                        "values": list(speed),
+                    }
+                ],
+            },
+            {
+                "slug": "incline",
+                "display_unit": "%",
+                "average_value": 3.0,
+                "max_value": 12.0,
+                "values": [1.0, 4.5],
             },
         ],
     }
@@ -581,6 +673,201 @@ async def test_rower_workout(
 
 @pytest.mark.parametrize(
     "workout_json",
+    [load_fixture("api/workout.json") | {"fitness_discipline": "caesar"}],
+    ids=["rower"],
+)
+@pytest.mark.usefixtures("imperial", "entity_registry_enabled_by_default")
+async def test_rower_sensors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    workout_json: dict[str, Any],
+) -> None:
+    """Stroke rate, split pace and strokes come from the rower's metrics."""
+    aioclient_mock.clear_requests()
+    _register_graph(aioclient_mock, rower_graph(), workout_json)
+
+    await setup_integration(hass, mock_config_entry)
+
+    expected = {
+        "stroke_rate:_average": ("24", "spm"),
+        "stroke_rate:_max": ("30", "spm"),
+        "stroke_rate:_current": ("0", "spm"),
+        "split_pace:_average": ("3.65", "min/500m"),
+        "split_pace:_max": ("2.72", "min/500m"),
+        "split_pace:_current": (STATE_UNKNOWN, "min/500m"),
+        "stroke_count": ("480", None),
+        "pace:_average": (STATE_UNKNOWN, "min/mi"),
+        "incline:_average": (STATE_UNKNOWN, "%"),
+        "elevation": (STATE_UNKNOWN, "ft"),
+    }
+    for suffix, (value, unit) in expected.items():
+        state = state_of(hass, suffix)
+        assert (state.state, state.attributes.get("unit_of_measurement")) == (
+            value,
+            unit,
+        ), suffix
+    assert state_of(hass, "stroke_count").attributes["state_class"] == "total"
+
+
+@pytest.mark.parametrize(
+    ("settings", "graph", "pace", "elevation"),
+    [
+        ({"distance_unit": "imperial"}, tread_graph(), ("11.43", "min/mi"), 269),
+        ({"distance_unit": "metric"}, tread_graph(), ("7.1", "min/km"), 269),
+        ({"distance_unit": "imperial"}, tread_graph("km"), ("18.39", "min/mi"), 269),
+    ],
+    ids=["imperial", "metric", "km_display"],
+)
+@pytest.mark.usefixtures("imperial", "entity_registry_enabled_by_default")
+async def test_tread_sensors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    settings: dict[str, Any],
+    graph: dict[str, Any],
+    pace: tuple[str, str],
+    elevation: int,
+) -> None:
+    """Pace, incline and elevation follow the settings; speed comes from pace."""
+    aioclient_mock.clear_requests()
+    _register_graph(
+        aioclient_mock,
+        graph,
+        load_fixture("api/workout.json") | {"fitness_discipline": "running"},
+        settings=settings,
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    state = state_of(hass, "pace:_average")
+    assert (state.state, state.attributes["unit_of_measurement"]) == pace
+    assert state_of(hass, "pace:_current").state == STATE_UNKNOWN
+    assert state_of(hass, "incline:_average").state == "3.0"
+    assert state_of(hass, "incline:_max").state == "12.0"
+    assert state_of(hass, "incline:_current").state == "0"
+    # Home Assistant shows distances of new entities in its unit system (feet
+    # here); the conversion from the settings unit is in test_values.py.
+    assert round(float(state_of(hass, "elevation").state)) == elevation
+    # Speed is only an alternative of pace on the tread.
+    assert state_of(hass, "speed:_max").state != STATE_UNKNOWN
+
+
+@pytest.mark.usefixtures("imperial", "entity_registry_enabled_by_default")
+async def test_tread_sensors_during_workout(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """During a tread workout the current pace, incline and speed are live."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    aioclient_mock.clear_requests()
+    _register_graph(
+        aioclient_mock,
+        tread_graph(),
+        in_progress_detail(fitness_discipline="running"),
+        in_progress_list(fitness_discipline="running"),
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "workout").state == STATE_ON
+    assert state_of(hass, "pace:_current").state == "10.0"
+    assert state_of(hass, "pace:_max").state == "8.5"
+    assert state_of(hass, "incline:_current").state == "4.5"
+    assert state_of(hass, "speed:_current").state == "6.0"
+    assert state_of(hass, "speed:_max").state == "7.06"
+    # Pace has no long-term statistics: its unit follows the Peloton settings
+    # and Home Assistant cannot convert it.
+    for kind in ("average", "max", "current"):
+        assert "state_class" not in state_of(hass, f"pace:_{kind}").attributes
+    assert state_of(hass, "incline:_current").attributes["state_class"] == (
+        "measurement"
+    )
+
+
+async def test_workout_start_without_samples(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """At the start of a ride Peloton sends metrics without samples (#61).
+
+    Seen on a real ride for about the first minute: the workout sensor is on
+    and the current values are unknown until the first sample arrives.
+    """
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    graph = load_fixture("performance_graph.json")
+    for metric in graph["metrics"]:
+        metric["values"] = []
+    aioclient_mock.clear_requests()
+    _register_graph(aioclient_mock, graph, in_progress_detail(), in_progress_list())
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "workout").state == STATE_ON
+    for suffix in ("output:_current", "cadence:_current", "speed:_current"):
+        assert state_of(hass, suffix).state == STATE_UNKNOWN, suffix
+
+
+@pytest.mark.parametrize(
+    ("workouts_json", "workout_json"),
+    [(in_progress_list(), in_progress_detail(is_paused=True))],
+    ids=["paused"],
+)
+@pytest.mark.usefixtures("mock_api")
+async def test_paused_workout(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A paused workout stays on, and current values read as between workouts."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    await setup_integration(hass, mock_config_entry)
+
+    workout = state_of(hass, "workout")
+    assert (workout.state, workout.attributes["paused"]) == (STATE_ON, True)
+    assert state_of(hass, "cadence:_current").state == "0"
+    assert state_of(hass, "output:_current").state == "0"
+    assert state_of(hass, "heart_rate:_current").state == STATE_UNKNOWN
+    # Averages and maximums of the workout so far stay.
+    assert state_of(hass, "cadence:_max").state != STATE_UNKNOWN
+
+
+@pytest.mark.usefixtures("imperial", "entity_registry_enabled_by_default")
+async def test_tread_belt_stopped(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """With the belt stopped Peloton sends no pace and a speed of 0."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    aioclient_mock.clear_requests()
+    _register_graph(
+        aioclient_mock,
+        tread_graph(pace=(12.0, None), speed=(5.0, 0.0)),
+        in_progress_detail(fitness_discipline="running"),
+        in_progress_list(fitness_discipline="running"),
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "pace:_current").state == STATE_UNKNOWN
+    assert state_of(hass, "speed:_current").state == "0.0"
+    assert state_of(hass, "pace:_average").state == "11.43"
+    assert state_of(hass, "pace:_max").state == "8.5"
+
+
+@pytest.mark.parametrize(
+    "workout_json",
     [load_fixture("api/workout.json") | {"fitness_discipline": "strength"}],
     ids=["strength"],
 )
@@ -611,13 +898,18 @@ def _register_graph(
     aioclient_mock: AiohttpClientMocker,
     graph: dict[str, Any],
     workout: dict[str, Any],
+    workouts: dict[str, Any] | None = None,
+    settings: dict[str, Any] | None = None,
 ) -> None:
     """Register the API with a custom performance graph and workout detail."""
     workout_id = "fedcba9876543210fedcba9876543210"
     for path, body in (
         ("/api/me", load_fixture("me.json")),
-        (f"/api/user/{USER_ID}/settings", load_fixture("settings.json")),
-        (f"/api/user/{USER_ID}/workouts", load_fixture("api/workouts.json")),
+        (f"/api/user/{USER_ID}/settings", settings or load_fixture("settings.json")),
+        (
+            f"/api/user/{USER_ID}/workouts",
+            workouts or load_fixture("api/workouts.json"),
+        ),
         (f"/api/workout/{workout_id}/performance_graph", graph),
         (f"/api/workout/{workout_id}", workout),
     ):

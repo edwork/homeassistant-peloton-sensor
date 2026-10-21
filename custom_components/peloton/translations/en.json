@@ -209,6 +209,48 @@
       },
       "yoga_count": {
         "name": "Yoga count"
+      },
+      "stroke_rate_average": {
+        "name": "Stroke rate average"
+      },
+      "stroke_rate_max": {
+        "name": "Stroke rate max"
+      },
+      "stroke_rate_current": {
+        "name": "Stroke rate current"
+      },
+      "split_pace_average": {
+        "name": "Split pace average"
+      },
+      "split_pace_max": {
+        "name": "Split pace best"
+      },
+      "split_pace_current": {
+        "name": "Split pace current"
+      },
+      "stroke_count": {
+        "name": "Stroke count"
+      },
+      "pace_average": {
+        "name": "Pace average"
+      },
+      "pace_max": {
+        "name": "Pace best"
+      },
+      "pace_current": {
+        "name": "Pace current"
+      },
+      "incline_average": {
+        "name": "Incline average"
+      },
+      "incline_max": {
+        "name": "Incline max"
+      },
+      "incline_current": {
+        "name": "Incline current"
+      },
+      "elevation": {
+        "name": "Elevation"
       }
     }
   },
@@ -224,7 +266,7 @@
         "data_description": {
           "idle_interval": "How long it can take to notice that a workout started.",
           "active_interval": "How often live values such as cadence and heart rate update during a workout.",
-          "max_workout_minutes": "A workout without a class length (for example Just Ride) that is still marked in progress after this long is treated as ended. Class workouts end 15 minutes after the class length."
+          "max_workout_minutes": "A workout that is not a class (for example Just Ride), or a class without a length, that is still marked in progress after this long is treated as ended. Classes end 15 minutes after the class length."
         }
       }
     }

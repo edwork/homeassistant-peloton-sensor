@@ -9,7 +9,7 @@ from typing import Any
 
 import aiohttp
 
-from ._http import raise_for_transient, read_body
+from ._http import describe_error, raise_for_transient, read_body
 from .auth import PelotonTokens, async_login, async_refresh, async_revoke
 from .const import API_BASE, REFRESH_RETRY_DELAY, REQUEST_TIMEOUT
 from .exceptions import (
@@ -245,7 +245,7 @@ class PelotonClient:
                     headers = resp.headers
             except (aiohttp.ClientError, TimeoutError) as err:
                 raise PelotonConnectionError(
-                    f"{path}: cannot reach Peloton: {err}"
+                    f"{path}: cannot reach Peloton: {describe_error(err)}"
                 ) from err
 
             if status == 401:

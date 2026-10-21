@@ -1,0 +1,40 @@
+# One markdown card with the latest workout and, during a workout, live values.
+# Replace every "name_on_peloton" with your entity prefix
+# (for example "jane_on_peloton"). Add it to a dashboard with
+# "Add card" > "Manual" and paste this.
+type: markdown
+content: |-
+  {%- set p = 'name_on_peloton' -%}
+  {%- set w = 'binary_sensor.' ~ p ~ '_workout' -%}
+  {%- macro value(name) -%}
+  {%- set e = 'sensor.' ~ p ~ '_' ~ name -%}
+  {{ states(e, rounded=True, with_unit=True) if has_value(e) else '-' }}
+  {%- endmacro -%}
+  {% if is_state(w, 'on') %}
+  ### Now
+  | | |
+  |:--|--:|
+  | Output | {{ value('output_current') }} |
+  | Cadence | {{ value('cadence_current') }} |
+  | Resistance | {{ value('resistance_current') }} |
+  | Heart rate | {{ value('heart_rate_current') }} |
+  | Speed | {{ value('speed_current') }} |
+  {% endif %}
+  ### Latest workout
+  {% if has_value('sensor.' ~ p ~ '_start_time') %}
+  **{{ state_attr(w, 'ride_title') or 'Workout' }}**{% if state_attr(w, 'instructor') %} with {{ state_attr(w, 'instructor') }}{% endif %} ({{ state_attr(w, 'workout_type') or 'unknown type' }})
+
+  {{ as_timestamp(states('sensor.' ~ p ~ '_start_time')) | timestamp_custom('%A %-d %B, %H:%M') }}, {{ value('duration') }}
+
+  | | |
+  |:--|--:|
+  | Total output | {{ value('total_output') }} |
+  | Calories | {{ value('total_calories') }} |
+  | Distance | {{ value('distance') }} |
+  | Average output | {{ value('output_average') }} |
+  | Average heart rate | {{ value('heart_rate_average') }} |
+  | Average cadence | {{ value('cadence_average') }} |
+  | Leaderboard | {{ value('leaderboard_rank') }} of {{ value('leaderboard_total_users') }} |
+  {% else %}
+  No workouts yet.
+  {% endif %}

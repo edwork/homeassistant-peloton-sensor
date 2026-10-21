@@ -147,6 +147,21 @@ def test_workout_tolerates_bad_data(data: Any) -> None:
         assert workout.leaderboard_rank == 1
 
 
+def test_workout_without_leaderboard() -> None:
+    """A Just Ride reports 0 leaderboard users and FTP 0; both mean none."""
+    workout = Workout.from_api(
+        {
+            "leaderboard_rank": None,
+            "total_leaderboard_users": 0,
+            "ftp_info": {"ftp": 0},
+        }
+    )
+
+    assert workout.leaderboard_rank is None
+    assert workout.total_leaderboard_users is None
+    assert workout.ftp is None
+
+
 def test_performance_graph() -> None:
     """Summaries and metrics are keyed by slug."""
     graph = PerformanceGraph.from_api(load_fixture("performance_graph.json"))

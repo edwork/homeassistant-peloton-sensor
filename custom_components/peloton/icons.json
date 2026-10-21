@@ -122,6 +122,48 @@
       },
       "yoga_count": {
         "default": "mdi:yoga"
+      },
+      "stroke_rate_average": {
+        "default": "mdi:rowing"
+      },
+      "stroke_rate_max": {
+        "default": "mdi:rowing"
+      },
+      "stroke_rate_current": {
+        "default": "mdi:rowing"
+      },
+      "split_pace_average": {
+        "default": "mdi:timer-outline"
+      },
+      "split_pace_max": {
+        "default": "mdi:timer-outline"
+      },
+      "split_pace_current": {
+        "default": "mdi:timer-outline"
+      },
+      "stroke_count": {
+        "default": "mdi:counter"
+      },
+      "pace_average": {
+        "default": "mdi:run-fast"
+      },
+      "pace_max": {
+        "default": "mdi:run-fast"
+      },
+      "pace_current": {
+        "default": "mdi:run-fast"
+      },
+      "incline_average": {
+        "default": "mdi:slope-uphill"
+      },
+      "incline_max": {
+        "default": "mdi:slope-uphill"
+      },
+      "incline_current": {
+        "default": "mdi:slope-uphill"
+      },
+      "elevation": {
+        "default": "mdi:elevation-rise"
       }
     }
   }

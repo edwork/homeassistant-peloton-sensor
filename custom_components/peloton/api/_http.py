@@ -28,6 +28,13 @@ async def read_body(resp: aiohttp.ClientResponse) -> tuple[Any, str]:
         return None, text
 
 
+def describe_error(err: BaseException) -> str:
+    """Describe a network error; TimeoutError has no message of its own."""
+    if isinstance(err, TimeoutError):
+        return "timed out"
+    return str(err) or type(err).__name__
+
+
 def retry_after(headers: Mapping[str, str]) -> float | None:
     """Return the Retry-After header in seconds, if it is a positive number."""
     try:

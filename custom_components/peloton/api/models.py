@@ -180,8 +180,10 @@ class Workout:
             is_paused=is_paused if isinstance(is_paused, bool) else None,
             total_work=float(total_work) if total_work is not None else None,
             leaderboard_rank=_int(data.get("leaderboard_rank")),
-            total_leaderboard_users=_int(data.get("total_leaderboard_users")),
-            ftp=_int(_map(data.get("ftp_info")).get("ftp")),
+            # Workouts without a leaderboard (Just Ride) report 0 users and an
+            # FTP of 0 when none is set; both mean "none".
+            total_leaderboard_users=_int(data.get("total_leaderboard_users")) or None,
+            ftp=_int(_map(data.get("ftp_info")).get("ftp")) or None,
             ride=Ride.from_api(ride) if isinstance(ride, Mapping) else None,
         )
 
@@ -197,7 +199,11 @@ class Summary:
 
 @dataclass(frozen=True, slots=True)
 class Metric:
-    """A sampled metric, such as cadence or heart rate."""
+    """A sampled metric, such as cadence or heart rate.
+
+    For pace metrics (minutes per distance) Peloton's ``max_value`` is the
+    fastest pace, which is the smallest number.
+    """
 
     slug: str
     display_unit: str | None
@@ -209,6 +215,18 @@ class Metric:
     def last(self) -> int | float | None:
         """Return the most recent sample, or None when there are none."""
         return self.values[-1] if self.values else None
+
+
+def _metric(entry: Mapping[str, Any]) -> Metric | None:
+    if (slug := _str(entry.get("slug"))) is None:
+        return None
+    return Metric(
+        slug=slug,
+        display_unit=_str(entry.get("display_unit")),
+        average=_number(entry.get("average_value")),
+        maximum=_number(entry.get("max_value")),
+        values=tuple(_number(v) for v in _list(entry.get("values"))),
+    )
 
 
 def _summaries(raw: Any) -> dict[str, Summary]:
@@ -244,16 +262,17 @@ class PerformanceGraph:
         """Parse /api/workout/{id}/performance_graph."""
         data = _map(data)
         metrics: dict[str, Metric] = {}
+        alternatives: list[Any] = []
         for entry in _list(data.get("metrics")):
             entry = _map(entry)
-            if (slug := _str(entry.get("slug"))) is not None:
-                metrics[slug] = Metric(
-                    slug=slug,
-                    display_unit=_str(entry.get("display_unit")),
-                    average=_number(entry.get("average_value")),
-                    maximum=_number(entry.get("max_value")),
-                    values=tuple(_number(v) for v in _list(entry.get("values"))),
-                )
+            if (metric := _metric(entry)) is not None:
+                metrics[metric.slug] = metric
+            # Tread workouts carry speed only as an alternative to pace.
+            alternatives.extend(_list(entry.get("alternatives")))
+        for entry in alternatives:
+            metric = _metric(_map(entry))
+            if metric is not None and metric.slug not in metrics:
+                metrics[metric.slug] = metric
         return cls(
             duration=_int(data.get("duration")),
             summaries=_summaries(data.get("summaries")),

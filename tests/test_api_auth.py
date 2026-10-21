@@ -158,14 +158,24 @@ async def test_login_rate_limit_retry_after(
     assert exc_info.value.retry_after == 30
 
 
-@pytest.mark.parametrize("exc", [ClientError("boom"), TimeoutError()])
+@pytest.mark.parametrize(
+    ("exc", "message"),
+    [
+        (ClientError("boom"), "Login: cannot reach Peloton: boom"),
+        (TimeoutError(), "Login: cannot reach Peloton: timed out"),
+        (ClientError(), "Login: cannot reach Peloton: ClientError"),
+    ],
+)
 async def test_login_network_errors(
-    session: ClientSession, aioclient_mock: AiohttpClientMocker, exc: Exception
+    session: ClientSession,
+    aioclient_mock: AiohttpClientMocker,
+    exc: Exception,
+    message: str,
 ) -> None:
-    """Network failures and timeouts are connection errors."""
+    """Network failures and timeouts are connection errors with a readable message."""
     aioclient_mock.post(TOKEN_URL, exc=exc)
 
-    with pytest.raises(PelotonConnectionError):
+    with pytest.raises(PelotonConnectionError, match=f"^{message}$"):
         await async_login(session, USERNAME, PASSWORD)
 
 
