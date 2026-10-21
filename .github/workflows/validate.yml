@@ -28,7 +28,7 @@ jobs:
         with:
           persist-credentials: false
       # Upstream has no tags; this is the master head of 2026-10-12.
-      - uses: home-assistant/actions/hassfest@50baf3a307f87100cf550d4ae127746595030d5d  # zizmor: ignore[stale-action-refs]
+      - uses: home-assistant/actions/hassfest@cd6f3635a740c84d8a14f6121a90068b8ece6bf6  # zizmor: ignore[stale-action-refs]
 
   hacs:
     name: HACS
