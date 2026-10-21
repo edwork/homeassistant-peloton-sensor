@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Run a disposable Home Assistant container with this checkout's integration
+# mounted read-only, on http://127.0.0.1:8124 so it does not collide with an
+# instance already on 8123.
+#
+#   HA_VERSION        image tag of homeassistant/home-assistant (default: stable)
+#   DEV_DOCKER_FLAGS  replaces the default "-it" (for example "-d" to detach)
+#   DEV_DOCKER_BIND   address to publish on (default: 127.0.0.1); set 0.0.0.0
+#                     to reach it from other machines, after onboarding
+#
+# Configuration lives in ./config-docker (gitignored), separate from the
+# ./config used by scripts/develop. Home Assistant writes it as root; remove it
+# with: docker run --rm -v "$PWD":/src alpine rm -rf /src/config-docker
+set -euo pipefail
+cd "$(dirname "$0")/.."
+HA_VERSION="${HA_VERSION:-stable}"
+DEV_DOCKER_BIND="${DEV_DOCKER_BIND:-127.0.0.1}"
+mkdir -p config-docker
+if [[ ! -f config-docker/configuration.yaml ]]; then
+  cp .devcontainer/configuration.yaml config-docker/configuration.yaml
+fi
+# shellcheck disable=SC2086  # DEV_DOCKER_FLAGS is intentionally word-split.
+exec docker run --rm ${DEV_DOCKER_FLAGS:--it} --name peloton-dev \
+  -p "${DEV_DOCKER_BIND}:8124:8123" \
+  -v "${PWD}/config-docker:/config" \
+  -v "${PWD}/custom_components/peloton:/config/custom_components/peloton:ro" \
+  "homeassistant/home-assistant:${HA_VERSION}"

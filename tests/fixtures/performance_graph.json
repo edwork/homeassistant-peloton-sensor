@@ -1,0 +1,117 @@
+{
+  "duration": 1800,
+  "average_summaries": [
+    {
+      "display_name": "Avg Output",
+      "display_unit": "watts",
+      "value": 200,
+      "slug": "avg_output"
+    },
+    {
+      "display_name": "Avg Cadence",
+      "display_unit": "rpm",
+      "value": 85,
+      "slug": "avg_cadence"
+    },
+    {
+      "display_name": "Avg Resistance",
+      "display_unit": "%",
+      "value": 42,
+      "slug": "avg_resistance"
+    },
+    {
+      "display_name": "Avg Speed",
+      "display_unit": "mph",
+      "value": 17.5,
+      "slug": "avg_speed"
+    }
+  ],
+  "summaries": [
+    {
+      "display_name": "Total Output",
+      "display_unit": "kj",
+      "value": 360,
+      "slug": "total_output"
+    },
+    {
+      "display_name": "Distance",
+      "display_unit": "mi",
+      "value": 10.5,
+      "slug": "distance"
+    },
+    {
+      "display_name": "Calories",
+      "display_unit": "kcal",
+      "value": 450,
+      "slug": "calories"
+    },
+    {
+      "display_name": "Active Calories",
+      "display_unit": "kcal",
+      "value": 380,
+      "slug": "active_calories"
+    }
+  ],
+  "metrics": [
+    {
+      "display_name": "Output",
+      "display_unit": "watts",
+      "max_value": 320,
+      "average_value": 200,
+      "values": [
+        150,
+        210,
+        190
+      ],
+      "slug": "output"
+    },
+    {
+      "display_name": "Cadence",
+      "display_unit": "rpm",
+      "max_value": 110,
+      "average_value": 85,
+      "values": [
+        80,
+        90,
+        88
+      ],
+      "slug": "cadence"
+    },
+    {
+      "display_name": "Resistance",
+      "display_unit": "%",
+      "max_value": 60,
+      "average_value": 42,
+      "values": [
+        40,
+        45,
+        44
+      ],
+      "slug": "resistance"
+    },
+    {
+      "display_name": "Speed",
+      "display_unit": "mph",
+      "max_value": 24.5,
+      "average_value": 20.1,
+      "values": [
+        19.8,
+        21.2,
+        20.4
+      ],
+      "slug": "speed"
+    },
+    {
+      "display_name": "Heart Rate",
+      "display_unit": "bpm",
+      "max_value": 165,
+      "average_value": 140,
+      "values": [
+        130,
+        150,
+        148
+      ],
+      "slug": "heart_rate"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 {
   "name": "Peloton",
+  "homeassistant": "2026.3.1",
   "render_readme": true,
-  "homeassistant": "2024.6.0b0"
+  "zip_release": true,
+  "filename": "peloton.zip"
 }

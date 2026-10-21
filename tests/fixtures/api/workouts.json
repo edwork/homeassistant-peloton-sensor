@@ -1,0 +1,38 @@
+{
+  "data": [
+    {
+      "id": "fedcba9876543210fedcba9876543210",
+      "user_id": "0123456789abcdef0123456789abcdef",
+      "status": "COMPLETE",
+      "fitness_discipline": "cycling",
+      "device_type": "home_bike_plus",
+      "timezone": "America/New_York",
+      "created_at": 1760000000,
+      "start_time": 1760000000,
+      "end_time": 1760001800,
+      "name": "Cycling Workout",
+      "ride": {
+        "id": "00112233445566778899aabbccddeeff",
+        "title": "30 min Synthetic Ride",
+        "description": "Synthetic class used in tests.",
+        "image_url": "https://example.invalid/ride.png",
+        "duration": 1800,
+        "instructor_id": "ffeeddccbbaa99887766554433221100",
+        "fitness_discipline": "cycling",
+        "instructor": {
+          "id": "ffeeddccbbaa99887766554433221100",
+          "name": "Synthetic Instructor",
+          "image_url": "https://example.invalid/instructor.png"
+        }
+      }
+    }
+  ],
+  "limit": 1,
+  "page": 0,
+  "total": 96,
+  "count": 1,
+  "page_count": 96,
+  "show_previous": false,
+  "show_next": true,
+  "sort_by": "-created"
+}

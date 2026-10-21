@@ -1,0 +1,48 @@
+name: Validate
+
+on:
+  push:
+    branches: [master, "dev-*"]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  workflow_call:
+
+permissions: {}
+
+concurrency:
+  # A literal name: when called from release.yml, github.workflow is the caller's.
+  group: validate-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read  # checkout
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # Upstream has no tags; this is the master head of 2026-10-12.
+      - uses: home-assistant/actions/hassfest@50baf3a307f87100cf550d4ae127746595030d5d  # zizmor: ignore[stale-action-refs]
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read  # HACS action reads repository metadata through the API
+    steps:
+      # Upstream has no tags since 2022; this is the main head of 2026-06-08.
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa  # zizmor: ignore[stale-action-refs]
+        env:
+          # Check the commit this run is about. Without it the action checks
+          # the default branch on release, schedule and manual runs.
+          REPOSITORY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        with:
+          category: integration
+          comment: false

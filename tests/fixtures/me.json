@@ -1,0 +1,81 @@
+{
+  "id": "0123456789abcdef0123456789abcdef",
+  "username": "testrider",
+  "first_name": "Test",
+  "last_name": "Rider",
+  "total_workouts": 96,
+  "workout_counts": [
+    {
+      "name": "Cycling",
+      "slug": "cycling",
+      "count": 30,
+      "icon_url": ""
+    },
+    {
+      "name": "Strength",
+      "slug": "strength",
+      "count": 5,
+      "icon_url": ""
+    },
+    {
+      "name": "Bike Bootcamp",
+      "slug": "bike_bootcamp",
+      "count": 4,
+      "icon_url": ""
+    },
+    {
+      "name": "Rowing",
+      "slug": "caesar",
+      "count": 2,
+      "icon_url": ""
+    },
+    {
+      "name": "Row Bootcamp",
+      "slug": "caesar_bootcamp",
+      "count": 6,
+      "icon_url": ""
+    },
+    {
+      "name": "Cardio",
+      "slug": "cardio",
+      "count": 1,
+      "icon_url": ""
+    },
+    {
+      "name": "Tread Bootcamp",
+      "slug": "circuit",
+      "count": 7,
+      "icon_url": ""
+    },
+    {
+      "name": "Meditation",
+      "slug": "meditation",
+      "count": 8,
+      "icon_url": ""
+    },
+    {
+      "name": "Running",
+      "slug": "running",
+      "count": 9,
+      "icon_url": ""
+    },
+    {
+      "name": "Stretching",
+      "slug": "stretching",
+      "count": 3,
+      "icon_url": ""
+    },
+    {
+      "name": "Walking",
+      "slug": "walking",
+      "count": 10,
+      "icon_url": ""
+    },
+    {
+      "name": "Yoga",
+      "slug": "yoga",
+      "count": 11,
+      "icon_url": ""
+    }
+  ]
+}

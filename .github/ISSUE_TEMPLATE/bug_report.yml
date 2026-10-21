@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in the Peloton integration does not work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Before opening an issue, check the existing issues. Do not include your
+        Peloton password, tokens or other personal data. The diagnostics download
+        removes them.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened
+      description: What you expected, what happened instead, and when it started.
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      description: Shown in HACS, or in Settings > Devices & services > Peloton.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      description: Settings > About.
+      placeholder: "2026.10.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: equipment
+    attributes:
+      label: Workout type
+      description: Which kind of workout shows the problem, if any.
+      options:
+        - Bike or Bike+
+        - Tread
+        - Row
+        - App (no Peloton equipment)
+        - Not workout related
+    validations:
+      required: false
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: >
+        Settings > Devices & services > Peloton > three-dot menu > Download
+        diagnostics, then attach the file here.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        Relevant lines from the Home Assistant log. Debug logging can be turned
+        on from the integration page.
+      render: text

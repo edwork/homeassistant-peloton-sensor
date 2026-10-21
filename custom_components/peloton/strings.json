@@ -2,28 +2,273 @@
   "config": {
     "step": {
       "user": {
-        "description": "Log in to your Peloton account.",
+        "description": "Log in with your Peloton username or email and password. The password is used once to get access tokens and is not stored.",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "username": "The username or email address you use to log in to Peloton.",
+          "password": "Your Peloton password."
         }
       },
       "reauth_confirm": {
-        "description": "Reauthenticate with your Peloton account credentials.",
+        "title": "[%key:common::config_flow::title::reauth%]",
+        "description": "Peloton no longer accepts the stored login for {username}. Enter the password to log in again.",
+        "data": {
+          "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "password": "Your Peloton password."
+        }
+      },
+      "reconfigure": {
+        "description": "Log in again, for example after changing your Peloton password. The account must stay the same.",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]"
+        },
+        "data_description": {
+          "username": "The username or email address you use to log in to Peloton.",
+          "password": "Your Peloton password."
         }
       }
     },
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "mfa_required": "This account requires multi-factor authentication, which the integration does not support.",
+      "rate_limited": "Peloton is limiting login attempts. Wait a few minutes before trying again.",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_account%]",
-      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+      "already_in_progress": "[%key:common::config_flow::abort::already_in_progress%]",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+      "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]",
+      "wrong_account": "That login belongs to a different Peloton account. Use the account this entry was set up with."
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "The stored Peloton login is no longer valid. Reauthenticate the integration."
+    },
+    "cannot_connect": {
+      "message": "Could not reach Peloton: {error}"
+    },
+    "rate_limited": {
+      "message": "Peloton is limiting login attempts; setup will be retried."
+    },
+    "update_failed": {
+      "message": "Error fetching data from Peloton: {error}"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "workout": {
+        "name": "Workout",
+        "state_attributes": {
+          "workout_type": {
+            "name": "Workout type"
+          },
+          "device_type": {
+            "name": "Device type"
+          },
+          "ride_title": {
+            "name": "Ride title"
+          },
+          "ride_description": {
+            "name": "Ride description"
+          },
+          "workout_image": {
+            "name": "Workout image"
+          },
+          "ftp": {
+            "name": "FTP"
+          },
+          "instructor": {
+            "name": "Instructor"
+          },
+          "paused": {
+            "name": "Paused"
+          }
+        }
+      }
+    },
+    "sensor": {
+      "start_time": {
+        "name": "Start time"
+      },
+      "end_time": {
+        "name": "End time"
+      },
+      "duration": {
+        "name": "Duration"
+      },
+      "leaderboard_rank": {
+        "name": "Leaderboard rank"
+      },
+      "leaderboard_total_users": {
+        "name": "Leaderboard total users"
+      },
+      "total_work": {
+        "name": "Total work"
+      },
+      "distance": {
+        "name": "Distance"
+      },
+      "total_calories": {
+        "name": "Total calories"
+      },
+      "active_calories": {
+        "name": "Active calories"
+      },
+      "total_output": {
+        "name": "Total output"
+      },
+      "heart_rate_average": {
+        "name": "Heart rate average"
+      },
+      "heart_rate_max": {
+        "name": "Heart rate max"
+      },
+      "heart_rate_current": {
+        "name": "Heart rate current"
+      },
+      "resistance_average": {
+        "name": "Resistance average"
+      },
+      "resistance_max": {
+        "name": "Resistance max"
+      },
+      "resistance_current": {
+        "name": "Resistance current"
+      },
+      "speed_average": {
+        "name": "Speed average"
+      },
+      "speed_max": {
+        "name": "Speed max"
+      },
+      "speed_current": {
+        "name": "Speed current"
+      },
+      "cadence_average": {
+        "name": "Cadence average"
+      },
+      "cadence_max": {
+        "name": "Cadence max"
+      },
+      "cadence_current": {
+        "name": "Cadence current"
+      },
+      "output_average": {
+        "name": "Output average"
+      },
+      "output_max": {
+        "name": "Output max"
+      },
+      "output_current": {
+        "name": "Output current"
+      },
+      "total_workouts": {
+        "name": "Total workouts"
+      },
+      "bike_bootcamp_count": {
+        "name": "Bike bootcamp count"
+      },
+      "rowing_count": {
+        "name": "Rowing count"
+      },
+      "row_bootcamp_count": {
+        "name": "Row bootcamp count"
+      },
+      "cardio_count": {
+        "name": "Cardio count"
+      },
+      "tread_bootcamp_count": {
+        "name": "Tread bootcamp count"
+      },
+      "cycling_count": {
+        "name": "Cycling count"
+      },
+      "meditation_count": {
+        "name": "Meditation count"
+      },
+      "running_count": {
+        "name": "Running count"
+      },
+      "strength_count": {
+        "name": "Strength count"
+      },
+      "stretching_count": {
+        "name": "Stretching count"
+      },
+      "walking_count": {
+        "name": "Walking count"
+      },
+      "yoga_count": {
+        "name": "Yoga count"
+      },
+      "stroke_rate_average": {
+        "name": "Stroke rate average"
+      },
+      "stroke_rate_max": {
+        "name": "Stroke rate max"
+      },
+      "stroke_rate_current": {
+        "name": "Stroke rate current"
+      },
+      "split_pace_average": {
+        "name": "Split pace average"
+      },
+      "split_pace_max": {
+        "name": "Split pace best"
+      },
+      "split_pace_current": {
+        "name": "Split pace current"
+      },
+      "stroke_count": {
+        "name": "Stroke count"
+      },
+      "pace_average": {
+        "name": "Pace average"
+      },
+      "pace_max": {
+        "name": "Pace best"
+      },
+      "pace_current": {
+        "name": "Pace current"
+      },
+      "incline_average": {
+        "name": "Incline average"
+      },
+      "incline_max": {
+        "name": "Incline max"
+      },
+      "incline_current": {
+        "name": "Incline current"
+      },
+      "elevation": {
+        "name": "Elevation"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "description": "How often to check Peloton. Between workouts each check is one request; a shorter interval detects the start of a workout sooner.",
+        "data": {
+          "idle_interval": "Interval between workouts (seconds)",
+          "active_interval": "Interval during a workout (seconds)",
+          "max_workout_minutes": "Longest workout without a class length (minutes)"
+        },
+        "data_description": {
+          "idle_interval": "How long it can take to notice that a workout started.",
+          "active_interval": "How often live values such as cadence and heart rate update during a workout.",
+          "max_workout_minutes": "A workout that is not a class (for example Just Ride), or a class without a length, that is still marked in progress after this long is treated as ended. Classes end 15 minutes after the class length."
+        }
+      }
     }
   }
 }

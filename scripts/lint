@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Run every pre-commit hook (ruff, codespell, yamllint, zizmor, file checks).
+# Untracked files that are not ignored are included, so new files are checked
+# before they are committed (pre-commit's --all-files only sees tracked files).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mapfile -t files < <(git ls-files --cached --others --exclude-standard)
+pre-commit run --files "${files[@]}" "$@"

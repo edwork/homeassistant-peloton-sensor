@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Run scripts/lint and scripts/test inside a Python 3.14 container, for hosts
+# without Python 3.14. Pass "lint" or "test" to run only one.
+#
+#   HA=latest (default)  newest Home Assistant (requirements_test.txt)
+#   HA=min               oldest tested Home Assistant (requirements_test_min.txt);
+#                        uses the full python image because lru-dict needs a
+#                        compiler there
+#
+# The virtualenv and pre-commit cache are kept in named Docker volumes so later
+# runs are fast.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+what="${1:-all}"
+case "${HA:-latest}" in
+  latest) image=python:3.14-slim; venv=peloton-dev-venv; reqs=requirements_test.txt ;;
+  min) image=python:3.14; venv=peloton-dev-venv-min; reqs=requirements_test_min.txt ;;
+  *) echo "HA must be latest or min" >&2; exit 2 ;;
+esac
+tty_flags=()
+[[ -t 0 && -t 1 ]] && tty_flags=(-it)
+docker run --rm --init "${tty_flags[@]}" \
+  -v "${PWD}:/src" -w /src \
+  -v "${venv}:/venv" \
+  -v peloton-dev-pre-commit:/root/.cache/pre-commit \
+  -e WHAT="${what}" -e REQS="${reqs}" \
+  -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+  "${image}" bash -c '
+    set -euo pipefail
+    # Hand files created in the container (caches, autofixes) back to the host
+    # user. Skipped when the mount already appears root-owned (rootless Docker
+    # or Podman), where a chown would only make things worse.
+    touch /tmp/.start
+    trap '\''if [[ "$(stat -c %u /src)" != 0 ]]; then find /src -xdev -user 0 -newer /tmp/.start -exec chown "${HOST_UID}:${HOST_GID}" {} + || true; fi'\'' EXIT
+    command -v git >/dev/null || { apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y git >/dev/null; }
+    git config --global --add safe.directory /src
+    [[ -x /venv/bin/python ]] || python -m venv /venv
+    /venv/bin/pip -q install -r requirements_lint.txt -r "${REQS}"
+    export PATH="/venv/bin:${PATH}"
+    case "${WHAT}" in
+      lint) scripts/lint ;;
+      test) scripts/test ;;
+      *) scripts/lint; scripts/test ;;
+    esac
+  '

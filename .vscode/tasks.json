@@ -2,39 +2,27 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run pre-commit checks.",
+      "label": "Run Home Assistant (scripts/develop)",
       "type": "shell",
-      "command": "pre-commit run --all-files",
+      "command": "scripts/develop",
       "problemMatcher": []
     },
     {
-      "label": "Run Home Assistant on port 8123",
+      "label": "Prepare dev config",
       "type": "shell",
-      "command": "container start",
+      "command": "mkdir -p config/custom_components && { [ -f config/configuration.yaml ] || cp .devcontainer/configuration.yaml config/; } && ln -sfn \"${PWD}/custom_components/peloton\" config/custom_components/peloton",
       "problemMatcher": []
     },
     {
-      "label": "Run Home Assistant configuration against /config",
+      "label": "Lint (scripts/lint)",
       "type": "shell",
-      "command": "container check",
+      "command": "scripts/lint",
       "problemMatcher": []
     },
     {
-      "label": "Upgrade Home Assistant to latest dev",
+      "label": "Test (scripts/test)",
       "type": "shell",
-      "command": "container install",
-      "problemMatcher": []
-    },
-    {
-      "label": "Install a specific version of Home Assistant",
-      "type": "shell",
-      "command": "container set-version",
-      "problemMatcher": []
-    },
-    {
-      "label": "Initialize development environment",
-      "type": "shell",
-      "command": "container init",
+      "command": "scripts/test",
       "problemMatcher": []
     }
   ]
