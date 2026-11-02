@@ -153,6 +153,7 @@ Behaviour:
   the current values are as between workouts.
 - Total work, Total output, the calorie sensors and Stroke count are totals
   that restart with each workout, so their long-term statistics count every workout.
+  Their last reset is the time the workout was created.
 - Distance, speed and elevation follow the distance unit in your Peloton
   settings. Home Assistant converts them to its unit system on new installs;
   the unit can be changed in each entity's settings.

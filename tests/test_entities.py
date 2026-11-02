@@ -1063,7 +1063,7 @@ async def test_max_workout_minutes_option(
 async def test_energy_totals_reset_at_workout_start(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
-    """Per-workout totals report the workout start as last_reset."""
+    """Per-workout totals report the workout's creation time as last_reset."""
     await setup_integration(hass, mock_config_entry)
 
     for suffix in ("power_output", "total_calories", "active_calories", "total_output"):
@@ -1084,4 +1084,135 @@ async def test_energy_totals_without_workout(
 
     state = state_of(hass, "total_calories")
     assert state.state == STATE_UNKNOWN
+    assert state.attributes.get("last_reset") is None
+
+
+ENERGY_TOTALS = ("power_output", "total_calories", "active_calories", "total_output")
+
+
+def _last_resets(hass: HomeAssistant) -> set[str]:
+    return {state_of(hass, suffix).attributes["last_reset"] for suffix in ENERGY_TOTALS}
+
+
+async def test_energy_totals_keep_last_reset_when_workout_completes(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """last_reset is the creation time and stays fixed for each workout.
+
+    Peloton moves start_time past the pre-class countdown when a workout
+    completes. A change of last_reset would make Home Assistant count the
+    workout again in long-term statistics.
+    """
+    graph = load_fixture("performance_graph.json")
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    aioclient_mock.clear_requests()
+    _register_graph(aioclient_mock, graph, in_progress_detail(), in_progress_list())
+    await setup_integration(hass, mock_config_entry)
+    assert state_of(hass, "workout").state == STATE_ON
+    assert _last_resets(hass) == {"2025-10-09T08:53:20+00:00"}
+
+    aioclient_mock.clear_requests()
+    completed = load_fixture("api/workouts.json")
+    completed["data"][0]["start_time"] = 1760000060
+    _register_graph(
+        aioclient_mock,
+        graph,
+        load_fixture("api/workout.json") | {"start_time": 1760000060},
+        completed,
+    )
+    await advance(hass, freezer)
+    assert state_of(hass, "workout").state == STATE_OFF
+    assert state_of(hass, "start_time").state == "2025-10-09T08:54:20+00:00"
+    assert _last_resets(hass) == {"2025-10-09T08:53:20+00:00"}
+
+    # Kept even if Peloton changed the creation time of the same workout.
+    aioclient_mock.clear_requests()
+    completed["data"][0]["created_at"] = 1760000030
+    _register_graph(
+        aioclient_mock,
+        graph,
+        load_fixture("api/workout.json")
+        | {"start_time": 1760000060, "created_at": 1760000030},
+        completed,
+    )
+    await advance(hass, freezer, timedelta(hours=1))
+    assert _last_resets(hass) == {"2025-10-09T08:53:20+00:00"}
+
+    # The next workout starts a new cycle.
+    aioclient_mock.clear_requests()
+    next_id = "00000000000000000000000000000001"
+    changes = {"id": next_id, "created_at": 1760010000, "start_time": 1760010000}
+    following = load_fixture("api/workouts.json")
+    following["data"][0] |= changes
+    for path, body in (
+        ("/api/me", load_fixture("me.json")),
+        (f"/api/user/{USER_ID}/settings", load_fixture("settings.json")),
+        (f"/api/user/{USER_ID}/workouts", following),
+        (f"/api/workout/{next_id}/performance_graph", graph),
+        (f"/api/workout/{next_id}", load_fixture("api/workout.json") | changes),
+    ):
+        aioclient_mock.get(f"{API_BASE}{path}", json=body, headers=JSON_HEADERS)
+    await advance(hass, freezer)
+    assert _last_resets(hass) == {"2025-10-09T11:40:00+00:00"}
+
+
+async def test_energy_totals_last_reset_without_workout_id(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A detail without an id is not kept, so the next workout gets its own."""
+    graph = load_fixture("performance_graph.json")
+    aioclient_mock.clear_requests()
+    _register_graph(
+        aioclient_mock, graph, load_fixture("api/workout.json") | {"id": None}
+    )
+    await setup_integration(hass, mock_config_entry)
+    assert _last_resets(hass) == {"2025-10-09T08:53:20+00:00"}
+
+    aioclient_mock.clear_requests()
+    _register_graph(
+        aioclient_mock,
+        graph,
+        load_fixture("api/workout.json") | {"id": None, "created_at": 1760010000},
+    )
+    await advance(hass, freezer, timedelta(hours=1))
+    assert _last_resets(hass) == {"2025-10-09T11:40:00+00:00"}
+
+
+@pytest.mark.parametrize(
+    "workout_json",
+    [load_fixture("api/workout.json") | {"created_at": None}],
+    ids=["no_created_at"],
+)
+@pytest.mark.usefixtures("mock_api")
+async def test_energy_totals_last_reset_without_creation_time(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Without a creation time, last_reset falls back to the start time."""
+    await setup_integration(hass, mock_config_entry)
+
+    assert _last_resets(hass) == {"2025-10-09T08:53:20+00:00"}
+
+
+@pytest.mark.parametrize(
+    "workout_json",
+    [load_fixture("api/workout.json") | {"created_at": None, "start_time": None}],
+    ids=["no_times"],
+)
+@pytest.mark.usefixtures("mock_api")
+async def test_energy_totals_last_reset_without_times(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Without either time there is no last_reset."""
+    await setup_integration(hass, mock_config_entry)
+
+    state = state_of(hass, "total_calories")
+    assert state.state == "450"
     assert state.attributes.get("last_reset") is None
