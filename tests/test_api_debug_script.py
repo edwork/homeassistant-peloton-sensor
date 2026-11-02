@@ -1,8 +1,10 @@
 """Tests for scripts/api_debug.py helpers (no network)."""
 
 import importlib.util
+import json
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -175,3 +177,87 @@ def test_credentials_without_terminal(
 
     with pytest.raises(SystemExit, match="PELOTON_USERNAME"):
         api_debug.credentials()
+
+
+class FakeClient:
+    """Answers --watch requests from a list of workout statuses, one per poll."""
+
+    def __init__(self, statuses: list[str | Exception]) -> None:
+        """Start with a completed workout as the latest one."""
+        self.statuses = statuses
+        self.status = "COMPLETE"
+        self.paths: list[str] = []
+
+    async def async_get_me(self) -> Any:
+        """Return the profile."""
+        return SimpleNamespace(id="user")
+
+    async def async_get_raw(self, path: str, params: Any = None) -> Any:
+        """Return the workout list (next status), the detail, or the path."""
+        self.paths.append(path)
+        if path.endswith("/workouts"):
+            if self.statuses:
+                status = self.statuses.pop(0)
+                if isinstance(status, Exception):
+                    raise status
+                self.status = status
+            return {"data": [{"id": "w1", "status": self.status}]}
+        if path == "/api/workout/w1":
+            return {
+                "id": "w1",
+                "status": self.status,
+                "ride": {"id": "r1"},
+                "user": {"username": "secret"},
+            }
+        return {"path": path}
+
+
+async def test_watch(
+    api_debug: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--watch waits for a workout, records it, and stops after it ends."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(api_debug.asyncio, "sleep", no_sleep)
+    statuses = [
+        "COMPLETE",
+        "IN_PROGRESS",
+        "IN_PROGRESS",
+        api_debug.PelotonError("timed out"),
+        "COMPLETE",
+    ]
+    client = FakeClient(statuses)
+    path = tmp_path / "ride.jsonl"
+
+    await api_debug.watch(client, path, 30)
+
+    lines = [json.loads(line) for line in path.read_text().splitlines()]
+    assert [line["workout"]["status"] for line in lines] == [
+        "IN_PROGRESS",
+        "IN_PROGRESS",
+        "COMPLETE",
+        "COMPLETE",
+        "COMPLETE",
+    ]
+    assert lines[0]["ride_details"] == {"path": "/api/ride/r1/details"}
+    assert "ride_details" not in lines[1]
+    assert lines[0]["workout"]["user"]["username"] == "redacted"
+    assert client.paths.count("/api/ride/r1/details") == 1
+
+
+async def test_watch_stops_on_auth_error(
+    api_debug: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An auth error ends the capture instead of being retried."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(api_debug.asyncio, "sleep", no_sleep)
+    client = FakeClient([api_debug.PelotonAuthError("rejected")])
+
+    with pytest.raises(api_debug.PelotonAuthError):
+        await api_debug.watch(client, tmp_path / "ride.jsonl", 30)
+    assert not (tmp_path / "ride.jsonl").exists()
