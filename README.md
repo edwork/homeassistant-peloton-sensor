@@ -21,6 +21,7 @@ unofficial API, which can change without notice.
 - [Entities](#entities)
 - [Data updates](#data-updates)
 - [Examples and blueprint](#examples-and-blueprint)
+- [Workout card](#workout-card)
 - [Upgrading from 0.x](#upgrading-from-0x)
 - [Known limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
@@ -212,6 +213,109 @@ scenes > Blueprints > Import blueprint with this URL:
 https://github.com/edwork/homeassistant-peloton-sensor/blob/master/blueprints/automation/peloton/workout_fan.yaml
 ```
 
+## Workout card
+
+The integration includes a dashboard card, Peloton workout, that shows the
+workout in progress and, between workouts, the latest workout. Home
+Assistant loads the card on every page by itself; do not add it as a
+dashboard resource. After installing or updating the integration, restart
+Home Assistant. Then reload the browser page or the app, so that the browser
+loads the new card. On a first install, reload after adding the Peloton
+integration: the card is loaded from then on.
+
+To add it, edit a dashboard, choose Add card and search for "Peloton
+workout". With one Peloton account the card finds it without any settings.
+With several accounts, choose the account in the card settings. The
+smallest configuration in YAML is:
+
+```yaml
+type: custom:peloton-workout-card
+```
+
+### What the card shows
+
+- During a workout: the class title (or the workout type when Peloton
+  reports no title), the instructor, the workout type, the start time and
+  "In progress". Each metric has a tile with the current value
+  and the average and max (best for pace). Below the tiles are the totals and
+  the leaderboard rank.
+- Before the first data: Peloton reports no values for roughly the first
+  minute of a workout. Until then the tiles show a dash, and for cycling,
+  bike bootcamp, running, walking, tread bootcamp, rowing and row bootcamp
+  the card says it is waiting for the first data from Peloton.
+- While paused: "Paused", and the tiles show the averages and max, because
+  Peloton reports no current values during a pause.
+- Between workouts: "Last workout", with the end time, the averages and max
+  of the latest workout, and its totals. Metrics without an average for that
+  workout are left out.
+- With no workouts on the account: "No workouts yet" and the number of
+  workouts.
+- When Peloton cannot be reached (the workout sensor is unavailable):
+  "Unavailable" and no values. They return when the connection recovers.
+
+Without a `metrics` setting, the card chooses the tiles from the workout
+type. A metric is left out when all its sensors are disabled, so the rower
+and tread metrics appear only after those sensors are enabled (see
+[Entities](#entities)).
+
+| Workout type | Metrics |
+| --- | --- |
+| Cycling, bike bootcamp, other types | Output, cadence, resistance, heart rate |
+| Running, walking, tread bootcamp | Speed, pace, incline, heart rate |
+| Rowing, row bootcamp | Output, stroke rate, split pace, heart rate |
+| Strength, yoga, meditation, stretching, cardio | Heart rate |
+
+During a workout, an automatic tile without any value so far is hidden once
+Peloton sends data, for example heart rate without a heart rate monitor. Tapping a
+tile or a total opens the sensor's details; tapping the header opens the
+workout sensor's details.
+
+The compact variant is one row with the name and a status: "In progress"
+with the first two current values, "Paused", or "Last workout" with the
+workout type and end time.
+
+### Card configuration
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `device_id` | the only account | The Peloton device. Needed when more than one Peloton account is set up. |
+| `name` | device name | Name shown above the title, for example "Jane on Peloton". |
+| `variant` | `full` | `full`, or `compact` for one row. |
+| `metrics` | automatic | Tiles to show, in order. Keys: `output`, `cadence`, `resistance`, `heart_rate`, `speed`, `pace`, `incline`, `stroke_rate`, `split_pace`. Empty chooses by workout type. Listed metrics are always shown, with a dash when there is no value, unless all their sensors are disabled. |
+| `show_image` | `true` | Show the class image beside the title. Only in the full variant, on a card at least 434 pixels wide, such as a full-width card in a sections view on a computer. The browser loads the image from Peloton's server. |
+| `show_totals` | `true` | Show total output, distance, calories and class length below the tiles. |
+| `show_leaderboard` | `true` | Show "Rank R of T" when Peloton reports both numbers. |
+| `tap_action` | more info | Action when the header (or the compact row) is tapped. The default opens the workout sensor's details. |
+| `entities` | none | YAML only. Entity ids to use instead of the ones the card finds, keyed by the entity's translation key, for example `workout: binary_sensor.jane_on_peloton_workout`. Normally not needed. |
+
+The card editor offers every key except `entities`. The card takes the full
+width of a sections view by default, and the compact variant half of it.
+
+### Theme variables
+
+The card uses the colors of the current theme. These variables can be set in
+a theme or with card-mod to change the color of the status and the icon:
+
+| Variable | Default | Used for |
+| --- | --- | --- |
+| `--peloton-active-color` | `--state-binary_sensor-active-color` | A workout in progress. |
+| `--peloton-paused-color` | `--warning-color` | A paused workout. |
+| `--peloton-idle-color` | `--secondary-text-color` | The last workout and no workouts, and the text of the Unavailable status. Its tint and the compact icon use `--state-unavailable-color`. |
+
+### Show the card only during a workout
+
+The card has no setting to hide itself. Use Home Assistant's visibility
+condition on the workout sensor instead (in the card editor's Visibility
+tab, or in YAML):
+
+```yaml
+type: custom:peloton-workout-card
+visibility:
+  - condition: state
+    entity: binary_sensor.jane_on_peloton_workout
+    state: "on"
+```
+
 ## Upgrading from 0.x
 
 Version 1.0 changes some names and values. The full list is in the
@@ -240,6 +344,18 @@ Version 1.0 changes some names and values. The full list is in the
 - Only the latest workout is shown. Earlier workouts are not imported.
 - Peloton limits login attempts per IP address. After several failed logins,
   wait a few minutes before trying again.
+- The workout card shows no elapsed time and no class progress yet.
+- The workout card's own text is in English only. Numbers, units and dates
+  follow the Home Assistant language and user settings.
+- Home Assistant Cast may not load the workout card by itself (not tested).
+  If a cast dashboard shows "Custom element doesn't exist", add
+  `/peloton_static/peloton-cards.js?v=1.1.0` as a JavaScript module resource
+  (Settings > Dashboards, three-dot menu, Resources; needs advanced mode in
+  the user profile), and change the version after each update, because
+  browsers keep the file for up to 31 days. Loading the card twice is
+  harmless.
+- The workout card needs a browser from 2023 or later. It uses CSS container
+  queries and `color-mix()`, which older browsers do not support.
 
 ## Troubleshooting
 
@@ -262,6 +378,26 @@ Download diagnostics. Tokens, the username, your first name, ids, class
 titles and image URLs are removed from that file. The class description, the
 instructor name and the workout time zone are kept.
 
+### Workout card problems
+
+- "Custom element doesn't exist: peloton-workout-card", or the card is
+  missing from Add card: reload the browser page after adding the Peloton
+  integration, or after restarting Home Assistant if the integration was
+  updated. If the message stays, look in the log for "Peloton
+  card file ... is missing; the workout card is not available". The release
+  zip, which HACS and manual installs use, includes the card. A git checkout
+  has no card until `scripts/build-frontend build` has been run (see
+  [Development](#development)). The `cards` key of the diagnostics file
+  shows the address the card is served from, or `null` when it is not.
+- "The Peloton workout sensor is disabled or not set up yet.": enable the
+  Workout binary sensor on the Peloton device page. On an install from before
+  version 1.0 the message also shows until the integration has set up its
+  entities once with version 1.0 or newer. Restart Home Assistant after the
+  upgrade, and if the Peloton entry asks for reauthentication or shows an
+  error, fix that first.
+- "Choose a Peloton account in the card settings.": more than one Peloton
+  account is set up. Choose one in the card editor, or set `device_id`.
+
 ## Removal
 
 1. Go to Settings > Devices & services > Peloton, open the entry's three-dot
@@ -270,6 +406,8 @@ instructor name and the workout time zone are kept.
 2. Remove the files: in HACS, open Peloton and choose Remove, or delete
    `<config>/custom_components/peloton/` for a manual install.
 3. Restart Home Assistant.
+4. If you added the workout card as a dashboard resource for Cast, delete it
+   under Settings > Dashboards > Resources.
 
 ## Development
 
@@ -288,9 +426,31 @@ in a container, and `scripts/dev-docker` starts a disposable Home Assistant
 container on port 8124. `scripts/api_debug.py` logs in with the integration's
 client and prints a summary of the account and the latest workout.
 
+The workout card is written in TypeScript with Lit in `frontend/` and
+bundled with esbuild into `custom_components/peloton/dist/peloton-cards.js`,
+which is not committed. `scripts/build-frontend` runs the Node tooling in a
+container, with the Node version from `frontend/.nvmrc`:
+
+- `scripts/build-frontend` (or `all`) installs the packages, then runs the
+  lint, the type check, the tests and the build.
+- `install` installs the packages into `frontend/node_modules`; run it once
+  and after `package-lock.json` changes. The other modes need it.
+- `build` writes the bundle. Run it before starting or restarting Home
+  Assistant with `scripts/develop` or `scripts/dev-docker`, then reload the
+  browser page.
+- `watch` rebuilds the bundle on every change.
+- `lint`, `typecheck` and `test` run one check; `format` applies the Biome
+  formatter.
+
+`tests/test_card_fixtures.py` writes what the card reads from Home Assistant
+(states, attributes and translation keys) for several workout scenarios to
+`frontend/test/fixtures/`, and fails when the files are out of date. After an
+intended change to entities or attributes, run the tests once with
+`PELOTON_UPDATE_CARD_FIXTURES=1` and then the card tests.
+
 Releases are published from the GitHub releases page. A workflow checks the
-tag, runs the tests, sets the version in `manifest.json` and attaches
-`peloton.zip`, which HACS installs.
+tag, runs the tests, builds the workout card, sets the version in
+`manifest.json` and attaches `peloton.zip`, which HACS installs.
 
 ## Contributors
 

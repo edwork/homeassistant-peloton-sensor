@@ -27,6 +27,7 @@ DOCS = [
 TRANSLATIONS = json.loads(
     (ROOT / "custom_components" / "peloton" / "translations" / "en.json").read_text()
 )
+CARD_SRC = ROOT / "frontend" / "src"
 
 
 def _section(heading: str) -> str:
@@ -85,6 +86,40 @@ def test_option_defaults() -> None:
         f"{DEFAULT_ACTIVE_INTERVAL} s",
         f"{DEFAULT_MAX_WORKOUT_MINUTES} min",
     ]
+
+
+def _ts_block(path: Path, start: str, end: str = "\n}") -> str:
+    """Return the TypeScript source from `start` up to the next `end`."""
+    text = path.read_text()
+    begin = text.index(start)
+    return text[begin : text.index(end, begin)]
+
+
+def test_card_options_match_card() -> None:
+    """The card configuration table lists the card's keys and defaults."""
+    rows = _table_rows(_section("### Card configuration"))
+    keys = [row[0].strip("`") for row in rows]
+    config = _ts_block(CARD_SRC / "types.ts", "export interface CardConfig")
+    assert keys == re.findall(r"readonly (\w+)\??:", config)[1:]  # without type
+
+    defaults = _ts_block(CARD_SRC / "config.ts", "export const DEFAULTS")
+    documented = {row[0].strip("`"): row[1:] for row in rows}
+    for key, value in re.findall(r'(\w+): (true|false|"\w+")', defaults):
+        assert documented[key][0] == "`" + value.strip('"') + "`", key
+
+    metric_keys = _ts_block(CARD_SRC / "types.ts", "export const METRIC_KEYS", "]")
+    assert re.findall(r"`(\w+)`", documented["metrics"][1].split("Keys:")[1]) == (
+        re.findall(r'"(\w+)"', metric_keys)
+    )
+
+
+def test_card_theme_variables() -> None:
+    """The theme variable table lists the card's own CSS variables."""
+    rows = _table_rows(_section("### Theme variables"))
+    styles = (CARD_SRC / "styles.ts").read_text()
+    assert [row[0].strip("`") for row in rows] == list(
+        dict.fromkeys(re.findall(r"var\(\s*(--peloton-[\w-]+)", styles))
+    )
 
 
 @pytest.mark.parametrize("path", DOCS, ids=lambda p: str(p.relative_to(ROOT)))

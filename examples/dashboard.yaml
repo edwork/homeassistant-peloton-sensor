@@ -1,4 +1,5 @@
-# Peloton view for a dashboard, built from Home Assistant's own cards.
+# Peloton view for a dashboard, built from the integration's workout card
+# and Home Assistant's own cards.
 #
 # Entity ids start with "<first name>_on_peloton_". Replace every
 # "name_on_peloton" below with yours (for example "jane_on_peloton").
@@ -18,6 +19,9 @@ sections:
       - type: heading
         heading: Workout
         icon: mdi:bike
+      # The integration's workout card. It finds the Peloton account by
+      # itself; with several accounts, add device_id (see the README).
+      - type: custom:peloton-workout-card
       - type: tile
         entity: binary_sensor.name_on_peloton_workout
         name: Workout

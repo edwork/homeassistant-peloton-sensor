@@ -1,7 +1,8 @@
 # Examples
 
 Ready-made dashboard cards and an automation for the Peloton integration.
-They use only cards and features built into Home Assistant.
+Apart from the integration's own workout card, they use only cards and
+features built into Home Assistant.
 
 ## Entity ids
 
@@ -17,8 +18,10 @@ Installs set up before version 1.0 keep their original entity ids. On those,
 
 [`dashboard.yaml`](dashboard.yaml) is a sections view with three columns:
 
-- Workout: the workout sensor, and while a workout is in progress gauges for
-  output, cadence and resistance plus heart rate and speed.
+- Workout: the integration's
+  [workout card](../README.md#workout-card), the workout sensor, and while a
+  workout is in progress gauges for output, cadence and resistance plus
+  heart rate and speed.
 - Latest workout: class, instructor and time of the latest workout, and its
   totals and averages.
 - History: workouts and output per week from long-term statistics, and the

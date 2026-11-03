@@ -135,6 +135,16 @@ def test_dashboard_structure() -> None:
     dashboard = yaml.safe_load(_example(DASHBOARD))
     assert dashboard["type"] == "sections"
     cards = [card for section in dashboard["sections"] for card in section["cards"]]
+    # The integration's own card comes first, without a device_id, so the
+    # example works for one account as it is. No other custom cards.
+    first = dashboard["sections"][0]["cards"]
+    assert [card["type"] for card in first[:2]] == [
+        "heading",
+        "custom:peloton-workout-card",
+    ]
+    assert first[1] == {"type": "custom:peloton-workout-card"}
+    custom = [card for card in cards if card["type"].startswith("custom:")]
+    assert custom == [first[1]]
     gauges = [card for card in cards if card["type"] == "gauge"]
     assert gauges
     for card in gauges:
