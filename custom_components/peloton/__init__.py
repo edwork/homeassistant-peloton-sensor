@@ -5,7 +5,9 @@ import logging
 from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .api import (
     PelotonAuthError,
@@ -16,6 +18,7 @@ from .api import (
     async_login_and_identify,
     async_revoke,
 )
+from .cards import async_register_cards
 from .const import DOMAIN
 from .coordinator import PelotonConfigEntry, PelotonCoordinator
 from .migration import async_fix_total_output_statistics
@@ -23,6 +26,14 @@ from .migration import async_fix_total_output_statistics
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Serve the workout card; runs once per Home Assistant run."""
+    await async_register_cards(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: PelotonConfigEntry) -> bool:

@@ -257,6 +257,7 @@ async def test_reauth_flow(
     assert mock_config_entry_v2.data[CONF_USERNAME] == USERNAME
     assert mock_config_entry_v2.unique_id == USER_ID
     assert token_requests(aioclient_mock.mock_calls)[0]["password"] == "a-new-password"
+    await hass.async_block_till_done()
     mock_setup_entry.assert_called_once()
 
 
@@ -339,6 +340,7 @@ async def test_reconfigure_flow(
     assert password_grants(aioclient_mock) == 1
     assert mock_config_entry.data[CONF_USERNAME] == "rider@example.invalid"
     assert mock_config_entry.data[CONF_TOKEN]["refresh_token"] == "refresh-1"
+    await hass.async_block_till_done()
     mock_setup_entry.assert_called_once()
 
 
