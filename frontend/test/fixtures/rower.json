@@ -1,0 +1,773 @@
+{
+  "devices": {
+    "device-1": {
+      "disabled_by": null,
+      "identifiers": [["peloton", "0123456789abcdef0123456789abcdef"]],
+      "name": "Test on Peloton",
+      "name_by_user": null
+    }
+  },
+  "entities": {
+    "binary_sensor.test_on_peloton_workout": {
+      "device_id": "device-1",
+      "entity_id": "binary_sensor.test_on_peloton_workout",
+      "platform": "peloton",
+      "translation_key": "workout"
+    },
+    "sensor.test_on_peloton_active_calories": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_active_calories",
+      "platform": "peloton",
+      "translation_key": "active_calories"
+    },
+    "sensor.test_on_peloton_bike_bootcamp_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_bike_bootcamp_count",
+      "platform": "peloton",
+      "translation_key": "bike_bootcamp_count"
+    },
+    "sensor.test_on_peloton_cadence_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_cadence_average",
+      "platform": "peloton",
+      "translation_key": "cadence_average"
+    },
+    "sensor.test_on_peloton_cadence_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_cadence_current",
+      "platform": "peloton",
+      "translation_key": "cadence_current"
+    },
+    "sensor.test_on_peloton_cadence_max": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_cadence_max",
+      "platform": "peloton",
+      "translation_key": "cadence_max"
+    },
+    "sensor.test_on_peloton_cardio_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_cardio_count",
+      "platform": "peloton",
+      "translation_key": "cardio_count"
+    },
+    "sensor.test_on_peloton_cycling_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_cycling_count",
+      "platform": "peloton",
+      "translation_key": "cycling_count"
+    },
+    "sensor.test_on_peloton_distance": {
+      "device_id": "device-1",
+      "display_precision": 2,
+      "entity_id": "sensor.test_on_peloton_distance",
+      "platform": "peloton",
+      "translation_key": "distance"
+    },
+    "sensor.test_on_peloton_duration": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_duration",
+      "platform": "peloton",
+      "translation_key": "duration"
+    },
+    "sensor.test_on_peloton_elevation": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_elevation",
+      "platform": "peloton",
+      "translation_key": "elevation"
+    },
+    "sensor.test_on_peloton_end_time": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_end_time",
+      "platform": "peloton",
+      "translation_key": "end_time"
+    },
+    "sensor.test_on_peloton_heart_rate_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_heart_rate_average",
+      "platform": "peloton",
+      "translation_key": "heart_rate_average"
+    },
+    "sensor.test_on_peloton_heart_rate_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_heart_rate_current",
+      "platform": "peloton",
+      "translation_key": "heart_rate_current"
+    },
+    "sensor.test_on_peloton_heart_rate_max": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_heart_rate_max",
+      "platform": "peloton",
+      "translation_key": "heart_rate_max"
+    },
+    "sensor.test_on_peloton_incline_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_incline_average",
+      "platform": "peloton",
+      "translation_key": "incline_average"
+    },
+    "sensor.test_on_peloton_incline_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_incline_current",
+      "platform": "peloton",
+      "translation_key": "incline_current"
+    },
+    "sensor.test_on_peloton_incline_max": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_incline_max",
+      "platform": "peloton",
+      "translation_key": "incline_max"
+    },
+    "sensor.test_on_peloton_leaderboard_rank": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_leaderboard_rank",
+      "platform": "peloton",
+      "translation_key": "leaderboard_rank"
+    },
+    "sensor.test_on_peloton_leaderboard_total_users": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_leaderboard_total_users",
+      "platform": "peloton",
+      "translation_key": "leaderboard_total_users"
+    },
+    "sensor.test_on_peloton_meditation_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_meditation_count",
+      "platform": "peloton",
+      "translation_key": "meditation_count"
+    },
+    "sensor.test_on_peloton_output_average": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_output_average",
+      "platform": "peloton",
+      "translation_key": "output_average"
+    },
+    "sensor.test_on_peloton_output_current": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_output_current",
+      "platform": "peloton",
+      "translation_key": "output_current"
+    },
+    "sensor.test_on_peloton_output_max": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_output_max",
+      "platform": "peloton",
+      "translation_key": "output_max"
+    },
+    "sensor.test_on_peloton_pace_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_pace_average",
+      "platform": "peloton",
+      "translation_key": "pace_average"
+    },
+    "sensor.test_on_peloton_pace_best": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_pace_best",
+      "platform": "peloton",
+      "translation_key": "pace_max"
+    },
+    "sensor.test_on_peloton_pace_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_pace_current",
+      "platform": "peloton",
+      "translation_key": "pace_current"
+    },
+    "sensor.test_on_peloton_resistance_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_resistance_average",
+      "platform": "peloton",
+      "translation_key": "resistance_average"
+    },
+    "sensor.test_on_peloton_resistance_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_resistance_current",
+      "platform": "peloton",
+      "translation_key": "resistance_current"
+    },
+    "sensor.test_on_peloton_resistance_max": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_resistance_max",
+      "platform": "peloton",
+      "translation_key": "resistance_max"
+    },
+    "sensor.test_on_peloton_row_bootcamp_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_row_bootcamp_count",
+      "platform": "peloton",
+      "translation_key": "row_bootcamp_count"
+    },
+    "sensor.test_on_peloton_rowing_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_rowing_count",
+      "platform": "peloton",
+      "translation_key": "rowing_count"
+    },
+    "sensor.test_on_peloton_running_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_running_count",
+      "platform": "peloton",
+      "translation_key": "running_count"
+    },
+    "sensor.test_on_peloton_speed_average": {
+      "device_id": "device-1",
+      "display_precision": 1,
+      "entity_id": "sensor.test_on_peloton_speed_average",
+      "platform": "peloton",
+      "translation_key": "speed_average"
+    },
+    "sensor.test_on_peloton_speed_current": {
+      "device_id": "device-1",
+      "display_precision": 1,
+      "entity_id": "sensor.test_on_peloton_speed_current",
+      "platform": "peloton",
+      "translation_key": "speed_current"
+    },
+    "sensor.test_on_peloton_speed_max": {
+      "device_id": "device-1",
+      "display_precision": 1,
+      "entity_id": "sensor.test_on_peloton_speed_max",
+      "platform": "peloton",
+      "translation_key": "speed_max"
+    },
+    "sensor.test_on_peloton_split_pace_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_split_pace_average",
+      "platform": "peloton",
+      "translation_key": "split_pace_average"
+    },
+    "sensor.test_on_peloton_split_pace_best": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_split_pace_best",
+      "platform": "peloton",
+      "translation_key": "split_pace_max"
+    },
+    "sensor.test_on_peloton_split_pace_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_split_pace_current",
+      "platform": "peloton",
+      "translation_key": "split_pace_current"
+    },
+    "sensor.test_on_peloton_start_time": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_start_time",
+      "platform": "peloton",
+      "translation_key": "start_time"
+    },
+    "sensor.test_on_peloton_strength_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_strength_count",
+      "platform": "peloton",
+      "translation_key": "strength_count"
+    },
+    "sensor.test_on_peloton_stretching_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_stretching_count",
+      "platform": "peloton",
+      "translation_key": "stretching_count"
+    },
+    "sensor.test_on_peloton_stroke_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_stroke_count",
+      "platform": "peloton",
+      "translation_key": "stroke_count"
+    },
+    "sensor.test_on_peloton_stroke_rate_average": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_stroke_rate_average",
+      "platform": "peloton",
+      "translation_key": "stroke_rate_average"
+    },
+    "sensor.test_on_peloton_stroke_rate_current": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_stroke_rate_current",
+      "platform": "peloton",
+      "translation_key": "stroke_rate_current"
+    },
+    "sensor.test_on_peloton_stroke_rate_max": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_stroke_rate_max",
+      "platform": "peloton",
+      "translation_key": "stroke_rate_max"
+    },
+    "sensor.test_on_peloton_total_calories": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_total_calories",
+      "platform": "peloton",
+      "translation_key": "total_calories"
+    },
+    "sensor.test_on_peloton_total_output": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_total_output",
+      "platform": "peloton",
+      "translation_key": "total_output"
+    },
+    "sensor.test_on_peloton_total_work": {
+      "device_id": "device-1",
+      "display_precision": 0,
+      "entity_id": "sensor.test_on_peloton_total_work",
+      "platform": "peloton",
+      "translation_key": "total_work"
+    },
+    "sensor.test_on_peloton_total_workouts": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_total_workouts",
+      "platform": "peloton",
+      "translation_key": "total_workouts"
+    },
+    "sensor.test_on_peloton_tread_bootcamp_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_tread_bootcamp_count",
+      "platform": "peloton",
+      "translation_key": "tread_bootcamp_count"
+    },
+    "sensor.test_on_peloton_walking_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_walking_count",
+      "platform": "peloton",
+      "translation_key": "walking_count"
+    },
+    "sensor.test_on_peloton_yoga_count": {
+      "device_id": "device-1",
+      "entity_id": "sensor.test_on_peloton_yoga_count",
+      "platform": "peloton",
+      "translation_key": "yoga_count"
+    }
+  },
+  "states": {
+    "binary_sensor.test_on_peloton_workout": {
+      "attributes": {
+        "device_class": "running",
+        "device_type": "home_bike_plus",
+        "friendly_name": "Test on Peloton Workout",
+        "ftp": 200,
+        "instructor": "Synthetic Instructor",
+        "paused": false,
+        "ride_description": "Synthetic class used in tests.",
+        "ride_title": "30 min Synthetic Ride",
+        "workout_image": "https://example.invalid/ride.png",
+        "workout_type": "caesar"
+      },
+      "state": "off"
+    },
+    "sensor.test_on_peloton_active_calories": {
+      "attributes": {
+        "device_class": "energy",
+        "friendly_name": "Test on Peloton Active calories",
+        "last_reset": "2025-10-09T08:53:20+00:00",
+        "state_class": "total",
+        "unit_of_measurement": "kcal"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_bike_bootcamp_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Bike bootcamp count",
+        "state_class": "total_increasing"
+      },
+      "state": "4"
+    },
+    "sensor.test_on_peloton_cadence_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Cadence average",
+        "state_class": "measurement",
+        "unit_of_measurement": "rpm"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_cadence_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Cadence current",
+        "state_class": "measurement",
+        "unit_of_measurement": "rpm"
+      },
+      "state": "0"
+    },
+    "sensor.test_on_peloton_cadence_max": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Cadence max",
+        "state_class": "measurement",
+        "unit_of_measurement": "rpm"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_cardio_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Cardio count",
+        "state_class": "total_increasing"
+      },
+      "state": "1"
+    },
+    "sensor.test_on_peloton_cycling_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Cycling count",
+        "state_class": "total_increasing"
+      },
+      "state": "30"
+    },
+    "sensor.test_on_peloton_distance": {
+      "attributes": {
+        "device_class": "distance",
+        "friendly_name": "Test on Peloton Distance",
+        "state_class": "measurement",
+        "unit_of_measurement": "mi"
+      },
+      "state": "2.5"
+    },
+    "sensor.test_on_peloton_duration": {
+      "attributes": {
+        "device_class": "duration",
+        "friendly_name": "Test on Peloton Duration",
+        "state_class": "measurement",
+        "unit_of_measurement": "min"
+      },
+      "state": "30.0"
+    },
+    "sensor.test_on_peloton_elevation": {
+      "attributes": {
+        "device_class": "distance",
+        "friendly_name": "Test on Peloton Elevation",
+        "state_class": "measurement",
+        "unit_of_measurement": "ft"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_end_time": {
+      "attributes": {
+        "device_class": "timestamp",
+        "friendly_name": "Test on Peloton End time"
+      },
+      "state": "2025-10-09T09:23:20+00:00"
+    },
+    "sensor.test_on_peloton_heart_rate_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Heart rate average",
+        "state_class": "measurement",
+        "unit_of_measurement": "bpm"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_heart_rate_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Heart rate current",
+        "state_class": "measurement",
+        "unit_of_measurement": "bpm"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_heart_rate_max": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Heart rate max",
+        "state_class": "measurement",
+        "unit_of_measurement": "bpm"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_incline_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Incline average",
+        "state_class": "measurement",
+        "unit_of_measurement": "%"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_incline_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Incline current",
+        "state_class": "measurement",
+        "unit_of_measurement": "%"
+      },
+      "state": "0"
+    },
+    "sensor.test_on_peloton_incline_max": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Incline max",
+        "state_class": "measurement",
+        "unit_of_measurement": "%"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_leaderboard_rank": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Leaderboard rank",
+        "state_class": "measurement"
+      },
+      "state": "120"
+    },
+    "sensor.test_on_peloton_leaderboard_total_users": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Leaderboard total users",
+        "state_class": "measurement"
+      },
+      "state": "4000"
+    },
+    "sensor.test_on_peloton_meditation_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Meditation count",
+        "state_class": "total_increasing"
+      },
+      "state": "8"
+    },
+    "sensor.test_on_peloton_output_average": {
+      "attributes": {
+        "device_class": "power",
+        "friendly_name": "Test on Peloton Output average",
+        "state_class": "measurement",
+        "unit_of_measurement": "W"
+      },
+      "state": "125"
+    },
+    "sensor.test_on_peloton_output_current": {
+      "attributes": {
+        "device_class": "power",
+        "friendly_name": "Test on Peloton Output current",
+        "state_class": "measurement",
+        "unit_of_measurement": "W"
+      },
+      "state": "0"
+    },
+    "sensor.test_on_peloton_output_max": {
+      "attributes": {
+        "device_class": "power",
+        "friendly_name": "Test on Peloton Output max",
+        "state_class": "measurement",
+        "unit_of_measurement": "W"
+      },
+      "state": "210"
+    },
+    "sensor.test_on_peloton_pace_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Pace average",
+        "unit_of_measurement": "min/mi"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_pace_best": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Pace best",
+        "unit_of_measurement": "min/mi"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_pace_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Pace current",
+        "unit_of_measurement": "min/mi"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_resistance_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Resistance average",
+        "state_class": "measurement",
+        "unit_of_measurement": "%"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_resistance_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Resistance current",
+        "state_class": "measurement",
+        "unit_of_measurement": "%"
+      },
+      "state": "0"
+    },
+    "sensor.test_on_peloton_resistance_max": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Resistance max",
+        "state_class": "measurement",
+        "unit_of_measurement": "%"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_row_bootcamp_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Row bootcamp count",
+        "state_class": "total_increasing"
+      },
+      "state": "6"
+    },
+    "sensor.test_on_peloton_rowing_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Rowing count",
+        "state_class": "total_increasing"
+      },
+      "state": "2"
+    },
+    "sensor.test_on_peloton_running_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Running count",
+        "state_class": "total_increasing"
+      },
+      "state": "9"
+    },
+    "sensor.test_on_peloton_speed_average": {
+      "attributes": {
+        "device_class": "speed",
+        "friendly_name": "Test on Peloton Speed average",
+        "state_class": "measurement",
+        "unit_of_measurement": "mph"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_speed_current": {
+      "attributes": {
+        "device_class": "speed",
+        "friendly_name": "Test on Peloton Speed current",
+        "state_class": "measurement",
+        "unit_of_measurement": "mph"
+      },
+      "state": "0"
+    },
+    "sensor.test_on_peloton_speed_max": {
+      "attributes": {
+        "device_class": "speed",
+        "friendly_name": "Test on Peloton Speed max",
+        "state_class": "measurement",
+        "unit_of_measurement": "mph"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_split_pace_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Split pace average",
+        "state_class": "measurement",
+        "unit_of_measurement": "min/500m"
+      },
+      "state": "3.65"
+    },
+    "sensor.test_on_peloton_split_pace_best": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Split pace best",
+        "state_class": "measurement",
+        "unit_of_measurement": "min/500m"
+      },
+      "state": "2.72"
+    },
+    "sensor.test_on_peloton_split_pace_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Split pace current",
+        "state_class": "measurement",
+        "unit_of_measurement": "min/500m"
+      },
+      "state": "unknown"
+    },
+    "sensor.test_on_peloton_start_time": {
+      "attributes": {
+        "device_class": "timestamp",
+        "friendly_name": "Test on Peloton Start time"
+      },
+      "state": "2025-10-09T08:53:20+00:00"
+    },
+    "sensor.test_on_peloton_strength_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Strength count",
+        "state_class": "total_increasing"
+      },
+      "state": "5"
+    },
+    "sensor.test_on_peloton_stretching_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Stretching count",
+        "state_class": "total_increasing"
+      },
+      "state": "3"
+    },
+    "sensor.test_on_peloton_stroke_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Stroke count",
+        "last_reset": "2025-10-09T08:53:20+00:00",
+        "state_class": "total"
+      },
+      "state": "480"
+    },
+    "sensor.test_on_peloton_stroke_rate_average": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Stroke rate average",
+        "state_class": "measurement",
+        "unit_of_measurement": "spm"
+      },
+      "state": "24"
+    },
+    "sensor.test_on_peloton_stroke_rate_current": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Stroke rate current",
+        "state_class": "measurement",
+        "unit_of_measurement": "spm"
+      },
+      "state": "0"
+    },
+    "sensor.test_on_peloton_stroke_rate_max": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Stroke rate max",
+        "state_class": "measurement",
+        "unit_of_measurement": "spm"
+      },
+      "state": "30"
+    },
+    "sensor.test_on_peloton_total_calories": {
+      "attributes": {
+        "device_class": "energy",
+        "friendly_name": "Test on Peloton Total calories",
+        "last_reset": "2025-10-09T08:53:20+00:00",
+        "state_class": "total",
+        "unit_of_measurement": "kcal"
+      },
+      "state": "200"
+    },
+    "sensor.test_on_peloton_total_output": {
+      "attributes": {
+        "device_class": "energy",
+        "friendly_name": "Test on Peloton Total output",
+        "last_reset": "2025-10-09T08:53:20+00:00",
+        "state_class": "total",
+        "unit_of_measurement": "kJ"
+      },
+      "state": "150"
+    },
+    "sensor.test_on_peloton_total_work": {
+      "attributes": {
+        "device_class": "energy",
+        "friendly_name": "Test on Peloton Total work",
+        "last_reset": "2025-10-09T08:53:20+00:00",
+        "state_class": "total",
+        "unit_of_measurement": "Wh"
+      },
+      "state": "100.0"
+    },
+    "sensor.test_on_peloton_total_workouts": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Total workouts",
+        "state_class": "total_increasing"
+      },
+      "state": "96"
+    },
+    "sensor.test_on_peloton_tread_bootcamp_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Tread bootcamp count",
+        "state_class": "total_increasing"
+      },
+      "state": "7"
+    },
+    "sensor.test_on_peloton_walking_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Walking count",
+        "state_class": "total_increasing"
+      },
+      "state": "10"
+    },
+    "sensor.test_on_peloton_yoga_count": {
+      "attributes": {
+        "friendly_name": "Test on Peloton Yoga count",
+        "state_class": "total_increasing"
+      },
+      "state": "11"
+    }
+  }
+}

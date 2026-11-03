@@ -23,6 +23,18 @@ updates:
       dev-tools:
         patterns: ["*"]
 
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    # Updates frontend/package.json and package-lock.json only. The Node
+    # version in frontend/.nvmrc is raised by hand.
+    groups:
+      frontend:
+        patterns: ["*"]
+
   - package-ecosystem: devcontainers
     directory: /
     schedule:

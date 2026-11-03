@@ -7,6 +7,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
+from .cards import DATA_CARDS
 from .coordinator import PelotonConfigEntry
 
 TO_REDACT = {
@@ -51,4 +52,5 @@ async def async_get_config_entry_diagnostics(
             },
             TO_REDACT,
         ),
+        "cards": hass.data.get(DATA_CARDS),
     }

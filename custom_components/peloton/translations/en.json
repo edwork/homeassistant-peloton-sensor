@@ -69,7 +69,21 @@
         "name": "Workout",
         "state_attributes": {
           "workout_type": {
-            "name": "Workout type"
+            "name": "Workout type",
+            "state": {
+              "cycling": "Cycling",
+              "bike_bootcamp": "Bike bootcamp",
+              "running": "Running",
+              "walking": "Walking",
+              "circuit": "Tread bootcamp",
+              "caesar": "Rowing",
+              "caesar_bootcamp": "Row bootcamp",
+              "strength": "Strength",
+              "yoga": "Yoga",
+              "meditation": "Meditation",
+              "stretching": "Stretching",
+              "cardio": "Cardio"
+            }
           },
           "device_type": {
             "name": "Device type"

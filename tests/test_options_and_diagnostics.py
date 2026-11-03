@@ -117,6 +117,8 @@ async def test_diagnostics_hide_tokens_and_personal_data(
     assert (
         diagnostics["data"]["performance_graph"]["metrics"]["cadence"]["average"] == 85
     )
+    # The card URL, or None when the card file is not built (tests/test_cards.py).
+    assert "cards" in diagnostics
 
 
 def test_every_entity_has_a_name_and_icon() -> None:

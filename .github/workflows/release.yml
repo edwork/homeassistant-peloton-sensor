@@ -2,9 +2,10 @@ name: Release
 
 # Publish a release in the GitHub web UI with a new tag such as 1.0.0 (or
 # 1.1.0b1 for a pre-release). This workflow then validates and tests the
-# tagged code, writes the tag's version into manifest.json, builds peloton.zip
-# and attaches it to the release. HACS installs that zip (hacs.json:
-# zip_release). Nothing is built locally.
+# tagged code, builds the Lovelace card (frontend.yml, in a job without write
+# permissions), writes the tag's version into manifest.json, builds
+# peloton.zip with the card in dist/ and attaches it to the release. HACS
+# installs that zip (hacs.json: zip_release). Nothing is built locally.
 #
 # If the tag is malformed or any check fails, the release is turned back into
 # a draft, which HACS ignores. Fix the cause and publish the draft again.
@@ -55,9 +56,18 @@ jobs:
     permissions:
       contents: read
 
+  frontend:
+    name: Frontend
+    needs: [tag]
+    uses: $/.github/workflows/frontend.yml
+    permissions:
+      contents: read
+    with:
+      upload: true
+
   package:
     name: Build and attach peloton.zip
-    needs: [tag, validate, tests]
+    needs: [tag, validate, tests, frontend]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -76,11 +86,18 @@ jobs:
           jq --arg version "$VERSION" '.version = $version' "$manifest" > manifest.tmp
           mv manifest.tmp "$manifest"
           echo "Packaging version $VERSION"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: peloton-cards
+          path: custom_components/peloton/dist/
+      - run: sha256sum custom_components/peloton/dist/peloton-cards.js
       - name: Build peloton.zip
         run: |
           cd custom_components/peloton
           zip -r -X "$GITHUB_WORKSPACE/peloton.zip" . -x '__pycache__/*' '*/__pycache__/*' '*.pyc'
           unzip -l "$GITHUB_WORKSPACE/peloton.zip"
+      - name: Check that peloton.zip contains the card
+        run: unzip -l "$GITHUB_WORKSPACE/peloton.zip" dist/peloton-cards.js
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
           subject-path: peloton.zip
@@ -92,7 +109,7 @@ jobs:
 
   unpublish:
     name: Return the release to draft
-    needs: [tag, validate, tests, package]
+    needs: [tag, validate, tests, frontend, package]
     if: ${{ failure() || cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

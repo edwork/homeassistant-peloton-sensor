@@ -47,5 +47,9 @@ api-responses/
 Thumbs.db
 .idea/
 
+# Frontend dependencies and test coverage (the card bundle is covered by dist/)
+/frontend/node_modules/
+/frontend/coverage/
+
 # Release zip, if the release steps are run by hand
 /peloton.zip

@@ -23,7 +23,7 @@ docker run --rm --init "${tty_flags[@]}" \
   -v "${PWD}:/src" -w /src \
   -v "${venv}:/venv" \
   -v peloton-dev-pre-commit:/root/.cache/pre-commit \
-  -e WHAT="${what}" -e REQS="${reqs}" \
+  -e WHAT="${what}" -e REQS="${reqs}" -e PELOTON_UPDATE_CARD_FIXTURES \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   "${image}" bash -c '
     set -euo pipefail

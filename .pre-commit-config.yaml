@@ -12,7 +12,7 @@ repos:
         args:
           - --ignore-words-list=hass,tread
           - --quiet-level=2
-        exclude: ^tests/fixtures/
+        exclude: ^(tests/fixtures/|frontend/package-lock\.json$)
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:

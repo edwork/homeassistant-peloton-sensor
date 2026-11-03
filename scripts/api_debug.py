@@ -18,6 +18,10 @@ Examples:
   scripts/api_debug.py --fixtures DIR  write sanitized JSON to DIR, which must
                                        not already contain fixtures
   scripts/api_debug.py --smoke         login, refresh, revoke, check revoke
+  scripts/api_debug.py --watch FILE    wait for a workout, then append raw
+                                       JSON (as --raw) to FILE as one line
+                                       every --interval seconds until it
+                                       has ended; FILE must not exist
 
 Each run does exactly one password login. Keep runs few: Peloton and
 Cloudflare rate limit logins per IP address.
@@ -96,6 +100,13 @@ NAME_PARENTS = frozenset({None, "user", "instructor"})
 RAW_SECRET_KEYS = frozenset({"username", "email", "obfuscated_email"})
 
 FIXTURE_NAMES = ("me", "settings", "workouts", "workout", "performance_graph")
+
+# --watch: how long to wait for a workout to start, and the longest capture.
+WATCH_WAIT = 2 * 3600
+WATCH_LIMIT = 4 * 3600
+# Snapshots taken after the workout has ended (Peloton updates the start
+# time and the totals at completion).
+WATCH_AFTER_END = 2
 
 
 def credentials() -> tuple[str, str]:
@@ -235,6 +246,15 @@ async def run(args: argparse.Namespace) -> int:
             "issues or commit it.",
             file=sys.stderr,
         )
+    if args.watch:
+        if args.watch.exists():
+            print(f"Error: {args.watch} already exists", file=sys.stderr)
+            return 1
+        print(
+            f"Note: {args.watch} will contain personal data; keep it out of "
+            "the repository and issues.",
+            file=sys.stderr,
+        )
     username, password = credentials()
     async with aiohttp.ClientSession() as session:
         tokens = await async_login(session, username, password)
@@ -250,7 +270,10 @@ async def run(args: argparse.Namespace) -> int:
         if args.smoke:
             return await smoke(session, client)
         try:
-            await inspect(client, args)
+            if args.watch:
+                await watch(client, args.watch, args.interval)
+            else:
+                await inspect(client, args)
         finally:
             revoked = await revoke(client)
     return 0 if revoked else 1
@@ -316,6 +339,96 @@ async def inspect(client: PelotonClient, args: argparse.Namespace) -> None:
             print(f"Wrote {path}")
 
 
+async def snapshot(client: PelotonClient, user_id: str) -> dict[str, Any]:
+    """Return the raw latest workout row, its detail and performance graph."""
+    workouts = await client.async_get_raw(
+        f"/api/user/{user_id}/workouts",
+        {"sort_by": "-created", "page": 0, "limit": 1, "joins": "ride,ride.instructor"},
+    )
+    data: dict[str, Any] = {"t": round(time.time(), 1), "workouts": workouts}
+    rows = workouts.get("data") if isinstance(workouts, dict) else None
+    row = rows[0] if isinstance(rows, list) and rows else None
+    if isinstance(row, dict) and isinstance(workout_id := row.get("id"), str):
+        data["workout"] = await client.async_get_raw(
+            f"/api/workout/{workout_id}", {"joins": "ride,ride.instructor"}
+        )
+        data["performance_graph"] = await client.async_get_raw(
+            f"/api/workout/{workout_id}/performance_graph", {"every_n": 5}
+        )
+    return data
+
+
+def status_of(data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return (workout id, status) of a snapshot's latest workout."""
+    workout = data.get("workout")
+    if not isinstance(workout, dict):
+        return None, None
+    return workout.get("id"), workout.get("status")
+
+
+async def watch(client: PelotonClient, path: Path, interval: float) -> None:
+    """Capture one workout from start to end, one JSON line per snapshot.
+
+    Waits for the latest workout to be in progress, then records it every
+    ``interval`` seconds until it is no longer in progress, plus
+    WATCH_AFTER_END snapshots after that. The class details (segments) are
+    recorded once at the start. Failed snapshots are retried at the next
+    interval. Ctrl+C stops early; the token is revoked either way.
+    """
+    me = await client.async_get_me()
+    user_id = me.id
+    started = time.monotonic()
+
+    async def next_snapshot(limit: float) -> dict[str, Any] | None:
+        """Return the next snapshot, or None once ``limit`` seconds have passed."""
+        while time.monotonic() - started <= limit:
+            try:
+                return await snapshot(client, user_id)
+            except PelotonAuthError:
+                raise
+            except PelotonError as err:
+                print(f"Skipped a snapshot ({type(err).__name__}: {err})")
+            await asyncio.sleep(interval)
+        return None
+
+    print("Waiting for a workout to start (Ctrl+C to stop).")
+    while True:
+        if (data := await next_snapshot(WATCH_WAIT)) is None:
+            print("No workout started; stopping.")
+            return
+        workout_id, status = status_of(data)
+        if status == "IN_PROGRESS":
+            break
+        await asyncio.sleep(interval)
+
+    ride = data["workout"].get("ride")
+    if isinstance(ride, dict) and isinstance(ride_id := ride.get("id"), str):
+        data["ride_details"] = await client.async_get_raw(
+            f"/api/ride/{ride_id}/details"
+        )
+    print(f"Recording workout {workout_id}.")
+    count = after_end = 0
+    with path.open("x") as file:
+        while True:
+            file.write(json.dumps(redact_secrets(data)) + "\n")
+            file.flush()
+            count += 1
+            status = status_of(data)[1]
+            print(f"{count}: {status}", flush=True)
+            if status != "IN_PROGRESS":
+                after_end += 1
+                if after_end > WATCH_AFTER_END:
+                    break
+            await asyncio.sleep(interval)
+            if (data := await next_snapshot(WATCH_LIMIT)) is None:
+                print("Time limit reached; stopping.")
+                break
+            if status_of(data)[0] != workout_id:
+                print("A newer workout started; stopping.")
+                break
+    print(f"Wrote {count} snapshots to {path}")
+
+
 async def smoke(session: aiohttp.ClientSession, client: PelotonClient) -> int:
     """Check refresh and revoke against the live API. Returns an exit code."""
     before = client.tokens
@@ -362,12 +475,29 @@ def main() -> int:
         help="write sanitized JSON to this directory (must not hold fixtures)",
     )
     parser.add_argument("--smoke", action="store_true", help="test refresh and revoke")
+    parser.add_argument(
+        "--watch",
+        type=Path,
+        help="record a workout from start to end as JSON lines in this new file "
+        "(personal data, as --raw)",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=30,
+        help="seconds between --watch snapshots (at least 10; default 30)",
+    )
     args = parser.parse_args()
+    if args.interval < 10:
+        parser.error("--interval must be at least 10 seconds")
     try:
         return asyncio.run(run(args))
     except PelotonError as err:
         print(f"Error: {type(err).__name__}: {err}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("Stopped.", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":
