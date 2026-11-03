@@ -240,7 +240,19 @@ def _duration(data: PelotonData) -> float | None:
 
 
 def _total_work(data: PelotonData) -> float | None:
-    total_work = data.workout.total_work if data.workout else None
+    """Return the total work in Wh.
+
+    Peloton fills in total_work (joules) when the workout completes and sends
+    0 until then. During the workout the live total output (kJ) is the same
+    energy, so it is used instead.
+    """
+    if (workout := data.workout) is None:
+        return None
+    total_work = workout.total_work
+    if data.active and not total_work:
+        live = _summary_value(data, "total_output")
+        if isinstance(live, int | float):
+            return round(live / 3.6, 4)
     return round(total_work / 3600, 4) if total_work is not None else None
 
 

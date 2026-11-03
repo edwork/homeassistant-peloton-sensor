@@ -916,6 +916,49 @@ def _register_graph(
         aioclient_mock.get(f"{API_BASE}{path}", json=body, headers=JSON_HEADERS)
 
 
+@pytest.mark.parametrize(
+    ("status", "total_work", "summaries", "expected"),
+    [
+        # Peloton sends total_work 0 until the workout completes.
+        ("IN_PROGRESS", 0, True, "100.0"),
+        ("IN_PROGRESS", None, True, "100.0"),
+        # Before the first sample there is no total output yet.
+        ("IN_PROGRESS", 0, False, "0.0"),
+        # Once complete, Peloton's exact value wins over the rounded kJ.
+        ("COMPLETE", 345600, True, "96.0"),
+        ("COMPLETE", 0, True, "0.0"),
+    ],
+    ids=["live", "live_without_total_work", "pre_roll", "complete", "complete_0"],
+)
+async def test_total_work_during_workout(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    mock_api: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+    status: str,
+    total_work: int | None,
+    summaries: bool,
+    expected: str,
+) -> None:
+    """Total work follows the live total output until Peloton sets it."""
+    freezer.move_to("2025-10-09 09:00:00+00:00")
+    graph = load_fixture("performance_graph.json")
+    if not summaries:
+        graph["summaries"] = []
+    workouts = None
+    workout = load_fixture("api/workout.json") | {"total_work": total_work}
+    if status == "IN_PROGRESS":
+        workout = in_progress_detail(total_work=total_work)
+        workouts = in_progress_list()
+    aioclient_mock.clear_requests()
+    _register_graph(aioclient_mock, graph, workout, workouts)
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert state_of(hass, "power_output").state == expected
+
+
 async def test_entities_survive_a_few_failed_polls(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,

@@ -14,6 +14,10 @@
   the last reset already recorded for it, so it is not counted again.
   Sums recorded by 1.0.0 stay as they are; they can be corrected with the
   adjust button in Developer tools, Statistics.
+- Total work stayed at 0 Wh during a workout, because Peloton fills in the
+  workout's total work only when it completes. It now follows Total output
+  during the workout, and Peloton's exact value replaces it at the end, which
+  can be slightly lower.
 - The manifest declares the integration's category (health and wellbeing),
   which the HACS validation asks for.
 

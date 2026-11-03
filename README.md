@@ -114,7 +114,7 @@ in Home Assistant do that (see the
 | Start time | | When the latest workout started. |
 | End time | | When the latest workout ended; unknown while it is in progress. If Peloton reports the same start and end time, the start time plus the class length. |
 | Duration | min | Class length of the latest workout. |
-| Total work | Wh | Total work of the latest workout. Called "Power Output" before 1.0. |
+| Total work | Wh | Total work of the latest workout. During a workout it follows Total output (1 kJ is 0.2778 Wh); Peloton's exact value replaces it when the workout completes. Called "Power Output" before 1.0. |
 | Total output | kJ | Total output of the latest workout, as shown by Peloton. |
 | Total calories | kcal | Calories of the latest workout. |
 | Active calories | kcal | Active calories of the latest workout, when Peloton reports them. |
