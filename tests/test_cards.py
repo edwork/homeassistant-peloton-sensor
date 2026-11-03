@@ -75,6 +75,10 @@ async def test_card_served_and_loaded(
     assert hass.data[DATA_EXTRA_MODULE_URL].urls == frozenset({url})
     assert frontend_events == [("added", url)]
 
+    # Set up diagnostics before the first test client: once a client has
+    # started the app, its router may be frozen and diagnostics cannot add
+    # its view.
+    assert await async_setup_component(hass, "diagnostics", {})
     client = await hass_client_no_auth()
     response = await client.get(url)
     assert response.status == 200
@@ -163,6 +167,10 @@ async def test_card_file_missing(
     assert "the workout card is not available" in caplog.text
     assert hass.data[cards.DATA_CARDS] is None
     assert frontend_events == []
+    # Set up diagnostics before the first test client: once a client has
+    # started the app, its router may be frozen and diagnostics cannot add
+    # its view.
+    assert await async_setup_component(hass, "diagnostics", {})
     client = await hass_client_no_auth()
     assert (await client.get(cards.CARDS_URL)).status == 404
 
