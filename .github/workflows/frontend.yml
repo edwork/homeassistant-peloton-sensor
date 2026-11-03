@@ -1,0 +1,80 @@
+name: Frontend
+
+# Lint, typecheck, test and build the Lovelace card in frontend/. The bundle
+# is written to custom_components/peloton/dist/peloton-cards.js and is never
+# committed. release.yml calls this workflow with upload: true and puts the
+# bundle into peloton.zip.
+on:
+  push:
+    branches: [master, "dev-*"]
+  pull_request:
+  workflow_call:
+    inputs:
+      upload:
+        description: Upload the bundle as the peloton-cards artifact
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  # A literal name: when called from release.yml, github.workflow is the caller's.
+  group: frontend-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, test and build the card
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read  # checkout
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build the bundle
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == tag ]]; then
+            PELOTON_CARDS_VERSION="${REF_NAME#v}"
+          else
+            PELOTON_CARDS_VERSION=dev
+          fi
+          export PELOTON_CARDS_VERSION
+          echo "Building card version $PELOTON_CARDS_VERSION"
+          npm run build
+      - name: Check the bundle
+        run: |
+          bundle=../custom_components/peloton/dist/peloton-cards.js
+          if [[ ! -s "$bundle" ]]; then
+            echo "::error::$bundle is missing or empty"
+            exit 1
+          fi
+          size=$(stat -c %s "$bundle")
+          echo "Bundle size: $size bytes"
+          if (( size >= 80 * 1024 )); then
+            echo "::error::$bundle is $size bytes, the limit is 80 KiB"
+            exit 1
+          fi
+          sha256sum "$bundle"
+      - if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: peloton-cards
+          path: custom_components/peloton/dist/peloton-cards.js
+          if-no-files-found: error
+          retention-days: 1
