@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Build, lint and test the Lovelace card in frontend/ inside a Node container,
+# for hosts without Node. The Node version is read from frontend/.nvmrc.
+#
+#   all (default)  npm ci, lint, typecheck, test, build
+#   build          bundle to custom_components/peloton/dist/peloton-cards.js
+#   watch          rebuild the bundle on every change (Ctrl+C to stop)
+#   format         apply the Biome formatter and safe fixes
+#   install        npm ci (run once, and after package-lock.json changes)
+#   lint           Biome checks, warnings fail
+#   typecheck      tsc --noEmit
+#   test           Vitest with coverage
+#
+#   PELOTON_CARDS_VERSION  version string built into the bundle (default: dev)
+#
+# The container runs as the invoking user, so frontend/node_modules (ignored)
+# and the bundle belong to that user. The npm cache is not kept between runs.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+what="${1:-all}"
+case "${what}" in
+  all) cmd='npm ci && npm run lint && npm run typecheck && npm test && npm run build' ;;
+  build) cmd='npm run build' ;;
+  watch) cmd='npm run build -- --watch=forever' ;;
+  format) cmd='npm run format' ;;
+  install) cmd='npm ci' ;;
+  lint | typecheck | test) cmd="npm run ${what}" ;;
+  *) echo "usage: $0 [all|build|watch|format|install|lint|typecheck|test]" >&2; exit 2 ;;
+esac
+if [[ "${what}" != all && "${what}" != install && ! -d frontend/node_modules ]]; then
+  echo "frontend/node_modules is missing; run $0 install first" >&2
+  exit 1
+fi
+tty_flags=()
+[[ -t 0 && -t 1 ]] && tty_flags=(-it)
+docker run --rm --init "${tty_flags[@]}" \
+  -u "$(id -u):$(id -g)" \
+  -v "${PWD}:/src" -w /src/frontend \
+  -e HOME=/tmp -e npm_config_cache=/tmp/npm-cache \
+  -e PELOTON_CARDS_VERSION="${PELOTON_CARDS_VERSION:-dev}" \
+  "node:$(<frontend/.nvmrc)-trixie-slim" bash -c "set -euo pipefail; ${cmd}"
