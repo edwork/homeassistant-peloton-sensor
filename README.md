@@ -283,6 +283,7 @@ workout type and end time.
 | `variant` | `full` | `full`, or `compact` for one row. |
 | `metrics` | automatic | Tiles to show, in order. Keys: `output`, `cadence`, `resistance`, `heart_rate`, `speed`, `pace`, `incline`, `stroke_rate`, `split_pace`. Empty chooses by workout type. Listed metrics are always shown, with a dash when there is no value, unless all their sensors are disabled. |
 | `show_image` | `true` | Show the class image beside the title. Only in the full variant, on a card at least 434 pixels wide, such as a full-width card in a sections view on a computer. The browser loads the image from Peloton's server. |
+| `show_logo` | `true` | Show the Peloton logo at the start of the header, in place of the workout type icon. Only in the full variant. |
 | `show_totals` | `true` | Show total output, distance, calories and class length below the tiles. |
 | `show_leaderboard` | `true` | Show "Rank R of T" when Peloton reports both numbers. |
 | `tap_action` | more info | Action when the header (or the compact row) is tapped. The default opens the workout sensor's details. |
@@ -294,13 +295,15 @@ width of a sections view by default, and the compact variant half of it.
 ### Theme variables
 
 The card uses the colors of the current theme. These variables can be set in
-a theme or with card-mod to change the color of the status and the icon:
+a theme or with card-mod to change the colors of the card:
 
 | Variable | Default | Used for |
 | --- | --- | --- |
 | `--peloton-active-color` | `--state-binary_sensor-active-color` | A workout in progress. |
 | `--peloton-paused-color` | `--warning-color` | A paused workout. |
 | `--peloton-idle-color` | `--secondary-text-color` | The last workout and no workouts, and the text of the Unavailable status. Its tint and the compact icon use `--state-unavailable-color`. |
+| `--peloton-accent-color` | Peloton Red (`#df1c2f`) | The Peloton logo and, unless `--peloton-border-color` is set, the card's border. |
+| `--peloton-border-color` | `--peloton-accent-color` | The card's border. Set it to `var(--divider-color)` for the usual Home Assistant border. |
 
 ### Show the card only during a workout
 

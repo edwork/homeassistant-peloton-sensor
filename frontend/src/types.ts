@@ -80,6 +80,7 @@ export interface CardConfig {
   /** Empty means automatic by workout type. */
   readonly metrics: readonly MetricKey[];
   readonly show_image: boolean;
+  readonly show_logo: boolean;
   readonly show_totals: boolean;
   readonly show_leaderboard: boolean;
   readonly tap_action?: ActionConfig;
@@ -182,6 +183,8 @@ export interface HeaderView {
   readonly title: string | null;
   /** Instructor, discipline and time joined with " \u00b7 ", or null. */
   readonly classLine: string | null;
+  /** "Started ..." while a workout runs, "Ended ..." after it, or null. */
+  readonly timeLine: string | null;
   readonly chip: ChipView | null;
 }
 
@@ -235,6 +238,8 @@ export interface CardView {
   readonly leaderboardEntityId: string | null;
   /** Class image URL (https only), or null. The width rule is CSS. */
   readonly image: string | null;
+  /** Full variant with show_logo: the Peloton logo leads the header. */
+  readonly logo: boolean;
   readonly compact: CompactView;
   /** Header (full) or row (compact) tap action, or null for no action. */
   readonly action: HeaderAction | null;

@@ -29,6 +29,7 @@ describe("validateConfig", () => {
       variant: "full",
       metrics: [],
       show_image: true,
+      show_logo: true,
       show_totals: true,
       show_leaderboard: true,
       entities: {},
@@ -46,6 +47,7 @@ describe("validateConfig", () => {
       variant: "compact",
       metrics: ["heart_rate", "output"],
       show_image: false,
+      show_logo: false,
       show_totals: false,
       show_leaderboard: false,
       tap_action: tap,
@@ -58,6 +60,7 @@ describe("validateConfig", () => {
       variant: "compact",
       metrics: ["heart_rate", "output"],
       show_image: false,
+      show_logo: false,
       show_totals: false,
       show_leaderboard: false,
       tap_action: tap,
@@ -207,9 +210,10 @@ describe("getConfigForm", () => {
     expect(content.type).toBe("expandable");
     expect(content.flatten).toBe(true);
     expect(content.schema).toEqual([
-      { name: "show_image", selector: { boolean: {} } },
-      { name: "show_totals", selector: { boolean: {} } },
-      { name: "show_leaderboard", selector: { boolean: {} } },
+      { name: "show_image", default: true, selector: { boolean: {} } },
+      { name: "show_logo", default: true, selector: { boolean: {} } },
+      { name: "show_totals", default: true, selector: { boolean: {} } },
+      { name: "show_leaderboard", default: true, selector: { boolean: {} } },
     ]);
     expect(FORM_SCHEMA[5].selector).toEqual({ ui_action: {} });
   });

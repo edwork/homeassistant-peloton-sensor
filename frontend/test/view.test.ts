@@ -130,6 +130,7 @@ describe("phases", () => {
       icon: null,
       title: null,
       classLine: null,
+      timeLine: null,
       chip: null,
     });
     expect(view.message).toBe("Waiting for Peloton data.");
@@ -398,7 +399,8 @@ describe("header, totals, leaderboard and image", () => {
       name: "Jane on Peloton",
       icon: "mdi:bike",
       title: "30 min Pop Ride",
-      classLine: `Alex \u00b7 Cycling \u00b7 at ${START}`,
+      classLine: "Alex \u00b7 Cycling",
+      timeLine: `Started at ${START}`,
       chip: { text: "In progress", tone: "active" },
     });
     expect(view.announce).toBe("Workout started");
@@ -410,7 +412,8 @@ describe("header, totals, leaderboard and image", () => {
       workout: { workout_type: "cycling", ride_title: "Just Ride", instructor: null },
     });
     expect(view.header?.title).toBe("Just Ride");
-    expect(view.header?.classLine).toBe(`Cycling \u00b7 at ${START}`);
+    expect(view.header?.classLine).toBe("Cycling");
+    expect(view.header?.timeLine).toBe(`Started at ${START}`);
   });
 
   it("uses the discipline name when there is no title", () => {
@@ -433,12 +436,13 @@ describe("header, totals, leaderboard and image", () => {
     expect(view.compact.text).toBe("Last workout: Outdoor run");
   });
 
-  it("ends the class line with the end time between workouts", () => {
+  it("shows the end time between workouts", () => {
     const view = viewOf({
       states: { ...RIDING, workout: "off", end_time: END },
       workout: CYCLING,
     });
-    expect(view.header?.classLine).toBe(`Alex \u00b7 Cycling \u00b7 Ended at ${END}`);
+    expect(view.header?.classLine).toBe("Alex \u00b7 Cycling");
+    expect(view.header?.timeLine).toBe(`Ended at ${END}`);
     expect(view.compact).toEqual({
       icon: "mdi:bike",
       tone: "idle",
@@ -446,11 +450,13 @@ describe("header, totals, leaderboard and image", () => {
     });
     expect(view.announce).toBe("Workout finished");
     const noEnd = viewOf({ states: { ...RIDING, workout: "off" }, workout: CYCLING });
-    expect(noEnd.header?.classLine).toBe(`Alex \u00b7 Cycling \u00b7 at ${START}`);
+    expect(noEnd.header?.classLine).toBe("Alex \u00b7 Cycling");
+    expect(noEnd.header?.timeLine).toBe(`Started at ${START}`);
     expect(noEnd.compact.text).toBe(`Last workout: Cycling, at ${START}`);
     const typeOnly = viewOf({ states: { workout: "off" }, workout: { workout_type: "" } });
     expect(typeOnly.compact.text).toBe("Last workout: Workout");
     expect(typeOnly.header?.classLine).toBeNull();
+    expect(typeOnly.header?.timeLine).toBeNull();
   });
 
   it("shows the totals and the leaderboard", () => {
@@ -532,7 +538,8 @@ describe("without formatters", () => {
     const view = computeView(hass, config());
     expect(view.tiles[0].value.text).toBe("182 W");
     expect(view.tiles[2].value.text).toBe("40%");
-    expect(view.header?.classLine).toMatch(/^Alex \u00b7 Cycling \u00b7 Nov 2, 2026/);
+    expect(view.header?.classLine).toBe("Alex \u00b7 Cycling");
+    expect(view.header?.timeLine).toMatch(/^Started Nov 2, 2026/);
   });
 });
 
@@ -625,6 +632,7 @@ interface FixtureExpectation {
   icon: string | null;
   chip: string | null;
   classLine: string | null;
+  timeLine: string | null;
   message: string | null;
   hint: boolean;
   /** Tiles in order, with the text of the large value and the second line. */
@@ -646,6 +654,7 @@ const NO_WORKOUT: Omit<FixtureExpectation, "phase" | "chip" | "message" | "compa
   title: null,
   icon: null,
   classLine: null,
+  timeLine: null,
   hint: false,
   tiles: [],
   totals: [],
@@ -667,7 +676,8 @@ const CYCLING_AVERAGES: [MetricKey, string, string][] = [
 const CYCLING_HEADER = {
   title: F_TITLE,
   icon: "mdi:bike",
-  classLine: ["Synthetic Instructor", "Cycling", `at ${F_START}`].join(DOT),
+  classLine: ["Synthetic Instructor", "Cycling"].join(DOT),
+  timeLine: `Started at ${F_START}`,
   message: null,
   image: F_IMAGE,
 };
@@ -731,7 +741,8 @@ const FIXTURE_EXPECTATIONS: Readonly<Record<string, FixtureExpectation>> = {
     ...CYCLING_HEADER,
     phase: "idle",
     chip: "Last workout",
-    classLine: ["Synthetic Instructor", "Cycling", `Ended at ${F_END}`].join(DOT),
+    classLine: ["Synthetic Instructor", "Cycling"].join(DOT),
+    timeLine: `Ended at ${F_END}`,
     hint: false,
     tiles: CYCLING_AVERAGES,
     totals: CYCLING_TOTALS,
@@ -743,7 +754,8 @@ const FIXTURE_EXPECTATIONS: Readonly<Record<string, FixtureExpectation>> = {
     phase: "active",
     icon: "mdi:dumbbell",
     chip: "In progress",
-    classLine: ["Synthetic Instructor", "Strength", `at ${F_START}`].join(DOT),
+    classLine: ["Synthetic Instructor", "Strength"].join(DOT),
+    timeLine: `Started at ${F_START}`,
     hint: false,
     tiles: [["heart_rate", DASH, `Avg ${DASH}${DOT}Max ${DASH}`]],
     totals: [
@@ -760,7 +772,8 @@ const FIXTURE_EXPECTATIONS: Readonly<Record<string, FixtureExpectation>> = {
     phase: "idle",
     icon: "mdi:rowing",
     chip: "Last workout",
-    classLine: ["Synthetic Instructor", "Rowing", `Ended at ${F_END}`].join(DOT),
+    classLine: ["Synthetic Instructor", "Rowing"].join(DOT),
+    timeLine: `Ended at ${F_END}`,
     hint: false,
     tiles: [
       ["output", "125 W", "Max 210 W"],
@@ -781,7 +794,8 @@ const FIXTURE_EXPECTATIONS: Readonly<Record<string, FixtureExpectation>> = {
     phase: "active",
     icon: "mdi:run",
     chip: "In progress",
-    classLine: ["Synthetic Instructor", "Running", `at ${F_START}`].join(DOT),
+    classLine: ["Synthetic Instructor", "Running"].join(DOT),
+    timeLine: `Started at ${F_START}`,
     hint: false,
     tiles: [
       ["speed", "6.0 mph", `Avg 5.2 mph${DOT}Max 7.06 mph`],
@@ -850,6 +864,7 @@ describe("contract fixtures", () => {
       icon: expected.icon,
       title: expected.title,
       classLine: expected.classLine,
+      timeLine: expected.timeLine,
       chip: expected.chip === null ? null : expect.objectContaining({ text: expected.chip }),
     });
     expect(view.message).toBe(expected.message);

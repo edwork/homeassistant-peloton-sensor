@@ -278,22 +278,22 @@ describe("devices, stub config and entity suggestion", () => {
   });
 
   it("stubs the only enabled device", () => {
-    expect(stubConfig(makeHass({ riders: [] }))).toEqual({});
-    expect(stubConfig(hassWith())).toEqual({ device_id: DEVICE_ID });
+    expect(stubConfig(makeHass({ riders: [] }))).toEqual({ variant: "full" });
+    expect(stubConfig(hassWith())).toEqual({ variant: "full", device_id: DEVICE_ID });
     expect(
       stubConfig(makeHass({ riders: [rider(), rider({ deviceId: "device-2", disabled: true })] })),
-    ).toEqual({ device_id: DEVICE_ID });
-    expect(stubConfig(makeHass({ riders: [rider(), rider({ deviceId: "device-2" })] }))).toEqual(
-      {},
-    );
-    expect(stubConfig({ ...hassWith(), devices: null })).toEqual({});
-    expect(stubConfig(undefined)).toEqual({});
+    ).toEqual({ variant: "full", device_id: DEVICE_ID });
+    expect(stubConfig(makeHass({ riders: [rider(), rider({ deviceId: "device-2" })] }))).toEqual({
+      variant: "full",
+    });
+    expect(stubConfig({ ...hassWith(), devices: null })).toEqual({ variant: "full" });
+    expect(stubConfig(undefined)).toEqual({ variant: "full" });
     const throwing = {
       get devices(): never {
         throw new Error("boom");
       },
     };
-    expect(stubConfig(throwing)).toEqual({});
+    expect(stubConfig(throwing)).toEqual({ variant: "full" });
   });
 
   it("suggests a card for a Peloton workout sensor only", () => {

@@ -35,6 +35,7 @@ function fallbackView(hass: unknown, config: CardConfig): CardView {
       icon: null,
       title: null,
       classLine: null,
+      timeLine: null,
       chip: { text: localize(hass, "chip.unavailable"), tone: "unavailable" },
     },
     message: localize(hass, "message.unavailable"),
@@ -46,6 +47,7 @@ function fallbackView(hass: unknown, config: CardConfig): CardView {
     leaderboard: null,
     leaderboardEntityId: null,
     image: null,
+    logo: config.variant === "full" && config.show_logo,
     compact: {
       icon: DEFAULT_ICON,
       tone: "unavailable",

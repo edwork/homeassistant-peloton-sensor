@@ -4,6 +4,7 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { repeat } from "lit/directives/repeat.js";
+import { logoTemplate } from "./logo";
 import type { CardView, ChipView, HeaderView, StatView, TileView, ValueView } from "./types";
 
 /** Event handlers and element state the templates need from the card. */
@@ -75,10 +76,11 @@ function headerTemplate(view: CardView, header: HeaderView, ctx: RenderContext):
       @click=${ctx.onAction}
       @keydown=${ctx.onActionKey}
     >
-      ${header.icon ? iconTemplate(header.icon, tone) : nothing}
+      ${view.logo ? logoTemplate() : header.icon ? iconTemplate(header.icon, tone) : nothing}
       <div class="heading">
         ${heading}
         ${header.classLine ? html`<div class="class-line">${header.classLine}</div>` : nothing}
+        ${header.timeLine ? html`<div class="class-line time-line">${header.timeLine}</div>` : nothing}
       </div>
     </div>
     ${image}
@@ -178,7 +180,9 @@ export function renderFull(view: CardView, ctx: RenderContext): TemplateResult {
     ${view.hint ? html`<p class="hint">${view.hint}</p>` : nothing}
     ${
       view.tiles.length
-        ? html`<div class=${view.tilesMuted ? "tiles muted" : "tiles"}>
+        ? html`<div
+            class="tiles count-${Math.min(view.tiles.length, 7)}${view.tilesMuted ? " muted" : ""}"
+          >
             ${repeat(
               view.tiles,
               (tile) => tile.key,

@@ -22,7 +22,9 @@ export function renderCompact(view: CardView, ctx: RenderContext): TemplateResul
     @keydown=${ctx.onActionKey}
   >
     ${iconTemplate(icon, tone, true)}
-    ${name ? html`<span class="name">${name}</span>` : nothing}
-    <span class="status">${text}</span>
+    <span class="text">
+      ${name ? html`<span class="name">${name}</span>` : nothing}
+      <span class="status">${text}</span>
+    </span>
   </div>`;
 }

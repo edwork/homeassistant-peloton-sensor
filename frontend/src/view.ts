@@ -91,6 +91,7 @@ function base(config: CardConfig, phase: Phase): CardView {
     leaderboard: null,
     leaderboardEntityId: null,
     image: null,
+    logo: config.variant === "full" && config.show_logo,
     compact: { icon: DEFAULT_ICON, tone: "none", text: "" },
     action: null,
     announce: null,
@@ -193,7 +194,7 @@ function problemView(hass: unknown, config: CardConfig, status: ProblemStatus): 
 }
 
 function plainHeader(name: string, chipView: ChipView | null = null): HeaderView {
-  return { name, icon: null, title: null, classLine: null, chip: chipView };
+  return { name, icon: null, title: null, classLine: null, timeLine: null, chip: chipView };
 }
 
 function workoutView(
@@ -212,10 +213,13 @@ function workoutView(
   const icon = disciplineIcon(workoutType);
   const start = formatStateText(hass, stateObj(hass, entityOf(map, "start_time")));
   const end = formatStateText(hass, stateObj(hass, entityOf(map, "end_time")));
-  const time =
-    phase === "idle" && end !== null ? localize(hass, "class_line.ended", { time: end }) : start;
+  // On its own line: a formatted date and time is too long to share one.
+  let timeLine: string | null = null;
+  if (phase === "idle" && end !== null)
+    timeLine = localize(hass, "class_line.ended", { time: end });
+  else if (start !== null) timeLine = localize(hass, "class_line.started", { time: start });
   const separator = localize(hass, "separator");
-  const classItems = [str(attrs.instructor), discipline, time ?? undefined].filter(
+  const classItems = [str(attrs.instructor), discipline].filter(
     (item): item is string => item !== undefined,
   );
 
@@ -270,6 +274,7 @@ function workoutView(
       icon,
       title,
       classLine: classItems.length ? classItems.join(separator) : null,
+      timeLine,
       chip: chip(hass, phase),
     },
     tiles,

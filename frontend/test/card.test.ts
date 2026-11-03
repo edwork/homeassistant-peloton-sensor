@@ -231,10 +231,14 @@ describe("full variant", () => {
     const chip = find(card, ".chip");
     expect(text(chip)).toBe("In progress");
     expect(chip?.classList.contains("tone-active")).toBe(true);
-    expect(text(find(card, ".class-line"))).toBe(
-      `Alex \u00b7 ${WORKOUT_TYPE_NAMES.cycling} \u00b7 at ${START}`,
-    );
-    expect(find(card, ".header ha-icon")?.getAttribute("icon")).toBe("mdi:bike");
+    expect(text(find(card, ".class-line"))).toBe(`Alex \u00b7 ${WORKOUT_TYPE_NAMES.cycling}`);
+    expect(text(find(card, ".time-line"))).toBe(`Started at ${START}`);
+    // The Peloton logo leads the header instead of the discipline icon.
+    const logo = find(card, ".header svg.logo");
+    expect(logo?.getAttribute("aria-hidden")).toBe("true");
+    expect(logo?.querySelector("path")?.getAttribute("d")).toMatch(/^m 31\.52468,295\.67403 /);
+    expect(find(card, ".header ha-icon")).toBeNull();
+    expect(find(card, ".tiles")?.classList.contains("count-3")).toBe(true);
 
     const tiles = all(card, "button.tile");
     expect(tiles.map((tile) => tile.getAttribute("aria-label"))).toEqual([
@@ -290,7 +294,8 @@ describe("full variant", () => {
     );
     expect(find(card, ".hint")).toBeNull();
     expect(text(find(card, ".title"))).toBe(WORKOUT_TYPE_NAMES.strength);
-    expect(find(card, ".header ha-icon")?.getAttribute("icon")).toBe("mdi:dumbbell");
+    expect(find(card, ".header svg.logo")).not.toBeNull();
+    expect(find(card, ".tiles")?.classList.contains("count-1")).toBe(true);
     expect(all(card, "button.tile").map((tile) => text(tile.querySelector("dt")))).toEqual([
       "Heart rate",
     ]);
@@ -314,12 +319,27 @@ describe("full variant", () => {
     const chip = find(card, ".chip");
     expect(text(chip)).toBe("Last workout");
     expect(chip?.classList.contains("tone-idle")).toBe(true);
-    expect(text(find(card, ".class-line"))).toBe(
-      `Alex \u00b7 ${WORKOUT_TYPE_NAMES.cycling} \u00b7 Ended at ${END}`,
-    );
+    expect(text(find(card, ".class-line"))).toBe(`Alex \u00b7 ${WORKOUT_TYPE_NAMES.cycling}`);
+    expect(text(find(card, ".time-line"))).toBe(`Ended at ${END}`);
     expect(all(card, "button.tile")[0].getAttribute("aria-label")).toBe(
       "Output: Avg 150 W, Max 301 W",
     );
+  });
+
+  it("shows the discipline icon without the logo", async () => {
+    const card = await mount(
+      hassWith({ states: { workout: "on" }, workout: { workout_type: "strength" } }),
+      { show_logo: false },
+    );
+    expect(find(card, ".header svg.logo")).toBeNull();
+    expect(find(card, ".header ha-icon")?.getAttribute("icon")).toBe("mdi:dumbbell");
+  });
+
+  it("shows no logo in the compact variant", async () => {
+    const card = await mount(hassWith(RIDING), { variant: "compact" });
+    expect(find(card, "svg.logo")).toBeNull();
+    expect(find(card, ".row .text .name")).not.toBeNull();
+    expect(find(card, ".row .text .status")).not.toBeNull();
   });
 
   it("honours the content options", async () => {
@@ -849,7 +869,7 @@ describe("layout and static methods", () => {
     ],
     ["null registries", () => ({ states: {}, entities: null, devices: null }), {}],
   ])("returns a stub config with %s", (_name, hass, expected) => {
-    expect(PelotonWorkoutCard.getStubConfig(hass())).toEqual(expected);
+    expect(PelotonWorkoutCard.getStubConfig(hass())).toEqual({ variant: "full", ...expected });
   });
 
   it("suggests the card for the workout sensor only", () => {
@@ -876,6 +896,7 @@ describe("layout and static methods", () => {
     expect(content?.flatten).toBe(true);
     expect(content?.schema?.map((item) => item.name)).toEqual([
       "show_image",
+      "show_logo",
       "show_totals",
       "show_leaderboard",
     ]);

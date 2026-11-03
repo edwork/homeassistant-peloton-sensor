@@ -55,12 +55,15 @@ function isEnabled(device: DeviceRegistryEntry): boolean {
 }
 
 /** getStubConfig: the device when exactly one enabled Peloton device exists. */
-export function stubConfig(hass: unknown): { device_id?: string } {
+export function stubConfig(hass: unknown): { variant: "full"; device_id?: string } {
+  // The editor's box select shows only a written value, not the default.
   try {
     const enabled = pelotonDevices(hass).filter(isEnabled);
-    return enabled.length === 1 ? { device_id: enabled[0].id } : {};
+    return enabled.length === 1
+      ? { variant: "full", device_id: enabled[0].id }
+      : { variant: "full" };
   } catch {
-    return {};
+    return { variant: "full" };
   }
 }
 

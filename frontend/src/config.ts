@@ -19,12 +19,13 @@ export const DEFAULTS: CardConfig = Object.freeze({
   variant: "full",
   metrics: Object.freeze([]),
   show_image: true,
+  show_logo: true,
   show_totals: true,
   show_leaderboard: true,
   entities: Object.freeze({}),
 });
 
-const BOOLEAN_KEYS = ["show_image", "show_totals", "show_leaderboard"] as const;
+const BOOLEAN_KEYS = ["show_image", "show_logo", "show_totals", "show_leaderboard"] as const;
 
 /** Translation keys of the integration's entities, which `entities` may override. */
 export const ENTITY_KEYS: readonly string[] = [
@@ -149,6 +150,7 @@ export function validateConfig(raw: unknown): CardConfig {
     variant: variant as Variant,
     metrics: validateMetrics(raw.metrics),
     show_image: booleans.show_image,
+    show_logo: booleans.show_logo,
     show_totals: booleans.show_totals,
     show_leaderboard: booleans.show_leaderboard,
     ...(tapAction !== undefined && { tap_action: tapAction }),
@@ -161,6 +163,8 @@ export interface FormSchema {
   readonly name: string;
   readonly type?: "expandable";
   readonly flatten?: boolean;
+  /** Shown by ha-form (as the placeholder) when the config leaves the key out. */
+  readonly default?: unknown;
   readonly selector?: Readonly<Record<string, unknown>>;
   readonly schema?: readonly FormSchema[];
 }
@@ -170,6 +174,7 @@ export const FORM_SCHEMA: readonly FormSchema[] = [
   { name: "name", selector: { text: {} } },
   {
     name: "variant",
+    default: DEFAULTS.variant,
     selector: {
       select: {
         mode: "box",
@@ -197,7 +202,11 @@ export const FORM_SCHEMA: readonly FormSchema[] = [
     name: "content",
     type: "expandable",
     flatten: true,
-    schema: BOOLEAN_KEYS.map((name) => ({ name, selector: { boolean: {} } })),
+    schema: BOOLEAN_KEYS.map((name) => ({
+      name,
+      default: DEFAULTS[name],
+      selector: { boolean: {} },
+    })),
   },
   { name: "tap_action", selector: { ui_action: {} } },
 ];

@@ -14,6 +14,8 @@ export const styles = css`
     --_idle: var(--peloton-idle-color, var(--secondary-text-color, #727272));
     --_unavailable: var(--state-unavailable-color, #bdbdbd);
     --_warning: var(--warning-color, #ffa600);
+    /* Peloton Red, from the integration's icon. */
+    --_brand: var(--peloton-accent-color, #df1c2f);
     --_space-2: var(--ha-space-2, 8px);
     --_space-4: var(--ha-space-4, 16px);
     --_secondary: var(--secondary-text-color, #727272);
@@ -29,7 +31,7 @@ export const styles = css`
     border-radius: var(--ha-card-border-radius, 12px);
     border-width: var(--ha-card-border-width, 1px);
     border-style: solid;
-    border-color: var(--ha-card-border-color, var(--divider-color, #e0e0e0));
+    border-color: var(--peloton-border-color, var(--_brand));
     color: var(--primary-text-color, #212121);
   }
 
@@ -125,6 +127,15 @@ export const styles = css`
     height: 40px;
     color: var(--_tone, var(--_idle));
     --mdc-icon-size: 24px;
+  }
+
+  .logo {
+    flex: none;
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    padding: 2px;
+    fill: var(--_brand);
   }
 
   .problem-body {
@@ -342,31 +353,40 @@ export const styles = css`
     border-radius: 50%;
   }
 
+  .row .text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
   .row .name {
-    flex: none;
-    max-width: 40%;
-    color: var(--primary-text-color, #212121);
-    font-size: var(--ha-font-size-m, 14px);
-    font-weight: var(--ha-font-weight-medium, 500);
+    color: var(--_secondary);
+    font-size: var(--ha-font-size-s, 12px);
+    line-height: 1.3;
   }
 
   .status {
-    flex: 1;
-    min-width: 0;
     overflow: hidden;
-    color: var(--_secondary);
+    color: var(--primary-text-color, #212121);
+    font-size: var(--ha-font-size-m, 14px);
+    font-weight: var(--ha-font-weight-medium, 500);
+    line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  @container (max-width: 199px) {
-    .row .name {
-      display: none;
-    }
+  /* Columns follow the number of tiles, so no row is left with one tile:
+     two tiles side by side, three in a row, four as 2 x 2 or 4 x 1. */
+  .tiles.count-1 {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   @container (min-width: 300px) {
-    .tiles {
+    .tiles.count-3,
+    .tiles.count-5,
+    .tiles.count-6,
+    .tiles.count-7 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
@@ -379,16 +399,16 @@ export const styles = css`
   }
 
   @container (min-width: 480px) {
-    .tile.primary {
-      grid-column: span 2;
+    .tiles.count-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
-    .tile.primary .main {
-      font-size: clamp(2rem, 10cqi, 4.5rem);
+    .tiles:is(.count-1, .count-2, .count-3) .tile.primary .main {
+      font-size: clamp(2rem, 8cqi, 3.5rem);
     }
   }
 
   @container (min-width: 600px) {
-    .tiles {
+    .tiles.count-7 {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
