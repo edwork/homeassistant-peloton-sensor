@@ -29,6 +29,7 @@ from homeassistant.util.unit_conversion import DistanceConverter, SpeedConverter
 from .api import Metric, Summary
 from .coordinator import PelotonConfigEntry, PelotonCoordinator, PelotonData
 from .entity import PelotonEntity
+from .migration import async_get_recorded_last_resets
 
 PARALLEL_UPDATES = 0
 
@@ -69,8 +70,8 @@ class PelotonSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[PelotonData], StateType | datetime]
     # For units that follow the account's Peloton settings (distance, speed).
     unit_fn: Callable[[PelotonData], str] | None = None
-    # For per-workout totals: when the total started (the workout start).
-    last_reset_fn: Callable[[PelotonData], datetime | None] | None = None
+    # Per-workout totals (state class total): last_reset marks the workout.
+    workout_total: bool = False
 
 
 def _imperial(data: PelotonData) -> bool:
@@ -239,7 +240,19 @@ def _duration(data: PelotonData) -> float | None:
 
 
 def _total_work(data: PelotonData) -> float | None:
-    total_work = data.workout.total_work if data.workout else None
+    """Return the total work in Wh.
+
+    Peloton fills in total_work (joules) when the workout completes and sends
+    0 until then. During the workout the live total output (kJ) is the same
+    energy, so it is used instead.
+    """
+    if (workout := data.workout) is None:
+        return None
+    total_work = workout.total_work
+    if data.active and not total_work:
+        live = _summary_value(data, "total_output")
+        if isinstance(live, int | float):
+            return round(live / 3.6, 4)
     return round(total_work / 3600, 4) if total_work is not None else None
 
 
@@ -376,7 +389,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
     ),
     PelotonSensorEntityDescription(
         # Called "Power Output" before; it is the workout's total work (energy).
-        # Per-workout totals reset at each workout start (last_reset), so
+        # Per-workout totals reset with each workout (last_reset), so
         # long-term statistics count every workout in full.
         key="total_work",
         translation_key="total_work",
@@ -384,7 +397,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL,
-        last_reset_fn=_start_time,
+        workout_total=True,
         value_fn=_total_work,
     ),
     PelotonSensorEntityDescription(
@@ -404,7 +417,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_CALORIE,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL,
-        last_reset_fn=_start_time,
+        workout_total=True,
         value_fn=lambda data: _summary_value(data, "total_calories", "calories"),
     ),
     PelotonSensorEntityDescription(
@@ -414,7 +427,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_CALORIE,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL,
-        last_reset_fn=_start_time,
+        workout_total=True,
         value_fn=lambda data: _summary_value(data, "active_calories"),
     ),
     PelotonSensorEntityDescription(
@@ -424,7 +437,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_JOULE,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL,
-        last_reset_fn=_start_time,
+        workout_total=True,
         value_fn=lambda data: _summary_value(data, "total_output"),
     ),
     # Heart rate reads unknown between workouts: 0 bpm is never a real value.
@@ -459,7 +472,7 @@ SENSORS: tuple[PelotonSensorEntityDescription, ...] = (
         unique_suffix="stroke_count",
         state_class=SensorStateClass.TOTAL,
         entity_registry_enabled_default=False,
-        last_reset_fn=_start_time,
+        workout_total=True,
         value_fn=lambda data: _summary_value(data, "stroke_count"),
     ),
     *_metric_sensors(
@@ -496,8 +509,17 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Peloton sensors."""
     coordinator = entry.runtime_data
+    last_resets = await async_get_recorded_last_resets(
+        hass,
+        coordinator.user_id,
+        coordinator.data.workout,
+        [d.unique_suffix for d in SENSORS if d.workout_total],
+    )
     async_add_entities(
-        PelotonSensor(coordinator, description) for description in SENSORS
+        PelotonSensor(
+            coordinator, description, last_resets.get(description.unique_suffix)
+        )
+        for description in SENSORS
     )
 
 
@@ -510,10 +532,17 @@ class PelotonSensor(PelotonEntity, SensorEntity):
         self,
         coordinator: PelotonCoordinator,
         description: PelotonSensorEntityDescription,
+        last_reset: tuple[str, datetime] | None = None,
     ) -> None:
-        """Initialize the sensor."""
+        """Initialize the sensor.
+
+        ``last_reset`` is (workout id, last_reset) that the statistics already
+        use for the latest workout (see async_get_recorded_last_resets).
+        """
         super().__init__(coordinator, description.unique_suffix)
         self.entity_description = description
+        # (workout id, last_reset) of the workout the total belongs to.
+        self._last_reset = last_reset
 
     @property
     def native_value(self) -> StateType | datetime:
@@ -522,11 +551,31 @@ class PelotonSensor(PelotonEntity, SensorEntity):
 
     @property
     def last_reset(self) -> datetime | None:
-        """Return when a per-workout total started (the workout start)."""
-        if (last_reset_fn := self.entity_description.last_reset_fn) is not None:
-            value = last_reset_fn(self.coordinator.data)
-            return dt_util.as_utc(value) if value is not None else None
-        return super().last_reset
+        """Return when a per-workout total started.
+
+        Home Assistant starts a new statistics cycle, and counts the total
+        again, whenever last_reset changes, so it stays fixed for each
+        workout. It is the workout's creation time: Peloton moves start_time
+        forward by the pre-class countdown when a workout completes, but not
+        created_at. The value first reported for a workout is kept even if
+        Peloton changes it later.
+        """
+        if not self.entity_description.workout_total:
+            return super().last_reset
+        if (workout := self.coordinator.data.workout) is None:
+            return None
+        if self._last_reset is not None and self._last_reset[0] == workout.id:
+            return self._last_reset[1]
+        created = (
+            workout.created_at if workout.created_at is not None else workout.start_time
+        )
+        if created is None:
+            return None
+        last_reset = dt_util.utc_from_timestamp(created)
+        # Without an id there is nothing to keep the value for.
+        if workout.id is not None:
+            self._last_reset = (workout.id, last_reset)
+        return last_reset
 
     @property
     def native_unit_of_measurement(self) -> str | None:

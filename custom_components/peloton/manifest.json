@@ -4,6 +4,9 @@
   "after_dependencies": [
     "recorder"
   ],
+  "categories": [
+    "health_wellbeing"
+  ],
   "codeowners": [
     "@edwork"
   ],
