@@ -7,17 +7,9 @@
 - A workout card for dashboards, Peloton workout, shows the workout in
   progress with live values and, between workouts, the latest workout. It
   loads automatically and needs no dashboard resource; see the README
-  section "Workout card".
-
-### Other
-
-- Workout type values are shown with names in the Home Assistant UI, for
-  example "Rowing" for `caesar`. Templates and automations still see the
-  raw values.
-- The integration now depends on Home Assistant's http integration, which
-  serves the card.
-
-## 1.0.1 (unreleased)
+  section "Workout card". It has a full and a compact variant, a card
+  editor, and the Peloton logo and a Peloton Red border, which a theme can
+  change.
 
 ### Fixes
 
@@ -37,6 +29,14 @@
   can be slightly lower.
 - The manifest declares the integration's category (health and wellbeing),
   which the HACS validation asks for.
+
+### Other
+
+- Workout type values are shown with names in the Home Assistant UI, for
+  example "Rowing" for `caesar`. Templates and automations still see the
+  raw values.
+- The integration now depends on Home Assistant's http integration, which
+  serves the card.
 
 ## 1.0.0 (2026-10-21)
 
