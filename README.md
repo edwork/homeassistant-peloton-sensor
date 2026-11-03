@@ -223,6 +223,8 @@ Home Assistant. Then reload the browser page or the app, so that the browser
 loads the new card. On a first install, reload after adding the Peloton
 integration: the card is loaded from then on.
 
+![The workout card after a ride: the class, the averages and maximums of four metrics, and the totals](https://raw.githubusercontent.com/edwork/homeassistant-peloton-sensor/master/docs/images/workout-card.png)
+
 To add it, edit a dashboard, choose Add card and search for "Peloton
 workout". With one Peloton account the card finds it without any settings.
 With several accounts, choose the account in the card settings. The
