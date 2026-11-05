@@ -25,8 +25,8 @@ from homeassistant.helpers.json import json_dumps
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 from homeassistant.util.yaml import load_yaml
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.peloton.api.const import API_BASE
 from custom_components.peloton.const import DOMAIN, TOLERATED_FAILED_POLLS

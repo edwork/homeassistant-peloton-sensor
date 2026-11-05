@@ -25,10 +25,11 @@ jobs:
       matrix:
         include:
           # Newest HA; requirements_test.txt pins the matching
-          # pytest-homeassistant-custom-component release.
+          # pytest-homeassistant release.
           - ha: latest
             requirements: requirements_test.txt
-          # Oldest supported HA, declared in hacs.json (2026.3.1).
+          # Oldest supported HA, declared in hacs.json (2026.3.1), with
+          # pytest-homeassistant-custom-component (see tests/__init__.py).
           - ha: minimum
             requirements: requirements_test_min.txt
     steps:

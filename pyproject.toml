@@ -3,6 +3,9 @@
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# Let Home Assistant install its httpx alias before respx is imported.
+addopts = "-p no:respx"
+pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.coverage.run]
@@ -233,7 +236,11 @@ mark-parentheses = false
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
 known-first-party = ["custom_components.peloton"]
-known-third-party = ["homeassistant", "pytest_homeassistant_custom_component"]
+known-third-party = [
+  "homeassistant",
+  "pytest_homeassistant",
+  "pytest_homeassistant_custom_component",
+]
 combine-as-imports = true
 split-on-trailing-comma = false
 

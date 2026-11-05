@@ -14,9 +14,10 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.peloton.api.const import (
     API_BASE,
@@ -283,6 +284,32 @@ async def test_connection_error_at_setup_retries(
     if mock_config_entry.error_reason_translation_key is not None:
         assert mock_config_entry.error_reason_translation_key == "update_failed"
         assert mock_config_entry.reason.startswith("Error fetching data from Peloton: ")
+
+
+@pytest.mark.skipif(
+    not hasattr(ConfigEntryNotReady, "retry_after"),
+    reason="Home Assistant before 2026.11 retries setup on its own schedule",
+)
+async def test_rate_limit_at_setup_retries_after_retry_after(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A rate limit at startup retries setup no sooner than Retry-After."""
+    aioclient_mock.get(
+        ME_URL, status=429, text="slow down", headers={**TEXT, "Retry-After": "600"}
+    )
+
+    await setup_integration(hass, mock_config_entry)
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert gets(aioclient_mock) == [ME_URL]
+
+    # Without Retry-After the first retry would come after 5 seconds.
+    await advance(hass, freezer, timedelta(seconds=590))
+    assert gets(aioclient_mock) == [ME_URL]
+    await advance(hass, freezer, timedelta(seconds=15))
+    assert gets(aioclient_mock) == [ME_URL, ME_URL]
 
 
 async def test_rejected_refresh_token_starts_one_reauth(

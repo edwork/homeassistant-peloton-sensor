@@ -84,9 +84,11 @@ async def async_resolve_timezone(name: str | None) -> tzinfo:
     if name:
         try:
             zone = await dt_util.async_get_time_zone(name)
-        except ValueError, OSError:
+        except ValueError, OSError:  # pragma: no cover
             # zoneinfo rejects keys that are not normalized relative paths, and
-            # the file system rejects overlong ones.
+            # the file system rejects overlong ones. Home Assistant 2026.11 and
+            # newer catch these and return None; remove this when the minimum
+            # version reaches 2026.11 (the minimum test job covers it).
             zone = None
         if zone is not None:
             return zone
@@ -142,11 +144,15 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
         )
 
     async def _async_setup(self) -> None:
-        """Fetch the profile and settings once before the first update."""
+        """Fetch the profile and settings once before the first update.
+
+        A rate limit passes its wait on, so that from Home Assistant 2026.11
+        the entry retries no sooner than Peloton asked.
+        """
         try:
             await self._async_refresh_profile()
         except PelotonError as err:
-            raise self._translate(err) from err
+            raise self._translate(err, self._retry_delay(err)) from err
 
     async def _async_refresh_profile(self) -> None:
         self._user = await self.client.async_get_me()
