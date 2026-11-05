@@ -1,3 +1,6 @@
 # Newest Home Assistant release; the plugin version is the homeassistant
 # version it pins.
 pytest-homeassistant==2026.11.0
+# Coverage for scripts/test and CI; the plugin does not include it.
+coverage==7.16.2
+pytest-cov==7.1.0
