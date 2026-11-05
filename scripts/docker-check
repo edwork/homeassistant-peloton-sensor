@@ -35,6 +35,11 @@ docker run --rm --init "${tty_flags[@]}" \
     command -v git >/dev/null || { apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y git >/dev/null; }
     git config --global --add safe.directory /src
     [[ -x /venv/bin/python ]] || python -m venv /venv
+    # The two Home Assistant test plugins clash. Remove the one this
+    # requirements file does not use (left behind when a venv switches).
+    for plugin in pytest-homeassistant pytest-homeassistant-custom-component; do
+      grep -q "^${plugin}==" "${REQS}" || /venv/bin/pip -q uninstall -y "${plugin}" 2>/dev/null || true
+    done
     /venv/bin/pip -q install -r requirements_lint.txt -r "${REQS}"
     export PATH="/venv/bin:${PATH}"
     case "${WHAT}" in

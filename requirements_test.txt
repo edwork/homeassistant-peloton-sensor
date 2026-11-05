@@ -1,2 +1,3 @@
-# Newest Home Assistant release; the plugin version pins the matching homeassistant.
-pytest-homeassistant-custom-component==0.13.375
+# Newest Home Assistant release; the plugin version is the homeassistant
+# version it pins.
+pytest-homeassistant==2026.11.0

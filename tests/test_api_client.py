@@ -5,7 +5,7 @@ import asyncio
 from aiohttp import ClientError, ClientSession
 from freezegun.api import FrozenDateTimeFactory
 import pytest
-from pytest_homeassistant_custom_component.test_util.aiohttp import (
+from pytest_homeassistant.test_util.aiohttp import (
     AiohttpClientMocker,
     AiohttpClientMockResponse,
 )

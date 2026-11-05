@@ -84,9 +84,11 @@ async def async_resolve_timezone(name: str | None) -> tzinfo:
     if name:
         try:
             zone = await dt_util.async_get_time_zone(name)
-        except ValueError, OSError:
+        except ValueError, OSError:  # pragma: no cover
             # zoneinfo rejects keys that are not normalized relative paths, and
-            # the file system rejects overlong ones.
+            # the file system rejects overlong ones. Home Assistant 2026.11 and
+            # newer catch these and return None; remove this when the minimum
+            # version reaches 2026.11 (the minimum test job covers it).
             zone = None
         if zone is not None:
             return zone

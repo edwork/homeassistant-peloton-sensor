@@ -11,8 +11,8 @@ from unittest.mock import PropertyMock, patch
 from aiohttp import ClientSession
 from homeassistant.const import CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.peloton.api.const import API_BASE, REVOKE_URL, TOKEN_URL
 from custom_components.peloton.const import DOMAIN
@@ -35,7 +35,11 @@ def load_fixture(name: str) -> Any:
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
-    """Allow Home Assistant to load the integration under test."""
+    """Allow Home Assistant to load the integration under test.
+
+    pytest-homeassistant does this by default; the older plugin used by the
+    minimum job does not.
+    """
 
 
 @pytest.fixture

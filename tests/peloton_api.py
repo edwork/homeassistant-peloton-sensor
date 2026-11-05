@@ -5,9 +5,7 @@ from collections.abc import Awaitable, Callable, Iterable
 import json
 from typing import Any
 
-from pytest_homeassistant_custom_component.test_util.aiohttp import (
-    AiohttpClientMockResponse,
-)
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMockResponse
 from yarl import URL
 
 from custom_components.peloton.api.const import API_BASE, TOKEN_URL, USER_ID_CLAIM

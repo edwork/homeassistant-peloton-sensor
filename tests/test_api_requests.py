@@ -4,7 +4,7 @@ from typing import Any
 
 from aiohttp import ClientSession
 from freezegun.api import FrozenDateTimeFactory
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.peloton.api import PelotonClient, async_login, async_revoke
 from custom_components.peloton.api.const import REQUEST_TIMEOUT, REVOKE_URL, TOKEN_URL

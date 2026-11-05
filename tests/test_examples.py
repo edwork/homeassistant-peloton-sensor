@@ -13,10 +13,7 @@ from homeassistant.helpers.template import Template
 from homeassistant.setup import async_setup_component
 from homeassistant.util.yaml import load_yaml
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_fire_time_changed,
-)
+from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
 import yaml
 
 from custom_components.peloton.sensor import WORKOUT_COUNTS
