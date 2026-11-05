@@ -144,11 +144,15 @@ class PelotonCoordinator(DataUpdateCoordinator[PelotonData]):
         )
 
     async def _async_setup(self) -> None:
-        """Fetch the profile and settings once before the first update."""
+        """Fetch the profile and settings once before the first update.
+
+        A rate limit passes its wait on, so that from Home Assistant 2026.11
+        the entry retries no sooner than Peloton asked.
+        """
         try:
             await self._async_refresh_profile()
         except PelotonError as err:
-            raise self._translate(err) from err
+            raise self._translate(err, self._retry_delay(err)) from err
 
     async def _async_refresh_profile(self) -> None:
         self._user = await self.client.async_get_me()

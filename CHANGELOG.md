@@ -1,6 +1,15 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## Unreleased
+
+### Fixes
+
+- When Peloton rate limits the first request at startup, Home Assistant
+  2026.11 and newer now wait for the time Peloton asks for before retrying
+  the setup, as polling already did. Before, setup retried after its own
+  shorter delay.
+
+## 1.1.0 (2026-11-03)
 
 ### New features
 

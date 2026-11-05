@@ -199,7 +199,9 @@ failed polls in a row and then become unavailable. When Peloton rate limits
 requests, polling waits for the time Peloton asks for (at least one polling
 interval, at most one hour), or backs off from one minute, doubling up to 15
 minutes. If that wait is longer than three polling intervals, the entities
-become unavailable right away. If Peloton stops accepting the stored tokens,
+become unavailable right away. A rate limit while Home Assistant starts the
+integration retries the setup no sooner than Peloton asks (Home Assistant
+2026.11 and newer). If Peloton stops accepting the stored tokens,
 see [Reauthentication](#reauthentication-and-reconfiguration).
 
 ## Examples and blueprint
