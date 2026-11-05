@@ -41,9 +41,10 @@ The integration has no Python dependencies beyond Home Assistant itself.
 
 ## Installation
 
-### HACS
+### Marketplace or HACS
 
-1. In HACS, search for "Peloton" and download it.
+1. On Home Assistant 2026.11 and newer, go to Settings > Marketplace, search
+   for "Peloton" and download it. On older versions, do the same in HACS.
 2. Restart Home Assistant.
 3. Add the integration (see [Configuration](#configuration)).
 
@@ -392,7 +393,7 @@ instructor name and the workout time zone are kept.
   integration, or after restarting Home Assistant if the integration was
   updated. If the message stays, look in the log for "Peloton
   card file ... is missing; the workout card is not available". The release
-  zip, which HACS and manual installs use, includes the card. A git checkout
+  zip, which Marketplace, HACS and manual installs use, includes the card. A git checkout
   has no card until `scripts/build-frontend build` has been run (see
   [Development](#development)). The `cards` key of the diagnostics file
   shows the address the card is served from, or `null` when it is not.
@@ -410,7 +411,7 @@ instructor name and the workout time zone are kept.
 1. Go to Settings > Devices & services > Peloton, open the entry's three-dot
    menu and choose Delete. The integration revokes its refresh token with
    Peloton.
-2. Remove the files: in HACS, open Peloton and choose Remove, or delete
+2. Remove the files: remove Peloton in Marketplace or HACS, or delete
    `<config>/custom_components/peloton/` for a manual install.
 3. Restart Home Assistant.
 4. If you added the workout card as a dashboard resource for Cast, delete it
@@ -457,7 +458,8 @@ intended change to entities or attributes, run the tests once with
 
 Releases are published from the GitHub releases page. A workflow checks the
 tag, runs the tests, builds the workout card, sets the version in
-`manifest.json` and attaches `peloton.zip`, which HACS installs.
+`manifest.json` and attaches `peloton.zip`, which Marketplace and HACS
+install.
 
 ## Contributors
 

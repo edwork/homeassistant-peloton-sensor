@@ -12,6 +12,9 @@
     "@edwork"
   ],
   "config_flow": true,
+  "connectivity": [
+    "cloud"
+  ],
   "dependencies": [
     "http"
   ],

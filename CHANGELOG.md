@@ -9,6 +9,11 @@
   the setup, as polling already did. Before, setup retried after its own
   shorter delay.
 
+### Other
+
+- The manifest declares how Home Assistant reaches Peloton (`connectivity`:
+  cloud), a key added in Home Assistant 2026.11. Older versions ignore it.
+
 ## 1.1.0 (2026-11-03)
 
 ### New features
